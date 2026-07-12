@@ -11,23 +11,25 @@ function Layout() {
   return (
     <div className="layout">
       <header className="layout__header">
-        <Link className="layout__brand" to="/">
-          Dave Proskin
-        </Link>
-        <nav className="layout__nav" aria-label="Main navigation">
-          {navItems.map(({ to, label, ...rest }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                isActive ? 'layout__nav-link layout__nav-link--active' : 'layout__nav-link'
-              }
-              {...rest}
-            >
-              {label}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="layout__header-inner">
+          <Link className="layout__brand" to="/">
+            Dave Proskin
+          </Link>
+          <nav className="layout__nav" aria-label="Main navigation">
+            {navItems.map(({ to, label, ...rest }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  isActive ? 'layout__nav-link layout__nav-link--active' : 'layout__nav-link'
+                }
+                {...rest}
+              >
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
       </header>
 
       <main className="layout__main">
@@ -35,7 +37,9 @@ function Layout() {
       </main>
 
       <footer className="layout__footer">
-        <p>&copy; {new Date().getFullYear()} Dave Proskin</p>
+        <div className="layout__footer-inner">
+          <p>&copy; {new Date().getFullYear()} Dave Proskin</p>
+        </div>
       </footer>
     </div>
   )

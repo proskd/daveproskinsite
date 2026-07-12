@@ -1,10 +1,18 @@
 import { Link } from 'react-router-dom'
+import ProfilePhoto from '../components/ProfilePhoto'
+import './Page.css'
 import './Home.css'
 
 function Home() {
   return (
     <section className="page home">
-      <h1>Hey there, I'm Dave</h1>
+      <div className="home__hero">
+        <ProfilePhoto size="large" className="home__photo" />
+        <div className="home__intro">
+          <p className="home__eyebrow">Software engineering leader</p>
+          <h1 className="home__title">Hey there, I'm Dave</h1>
+        </div>
+      </div>
 
       <div className="home__summary">
         <p>
@@ -16,14 +24,21 @@ function Home() {
 
         <p>
           If you're curious about my professional background, you can peek at my{' '}
-          <Link to="/about">About Me</Link> page for an overview. In summary, I love building apps,
-          and leading and growing engineers who share that love.
+          <Link to="/about" className="text-link">
+            About Me
+          </Link>{' '}
+          page for an overview. In summary, I love building apps, and leading and growing engineers who share
+          that love.
         </p>
 
         <p>
           Outside of work, I sometimes build things on my own, including this silly site. I've
           contributed to open source projects I find interesting, and put together my own iOS app
-          which you can see on my <Link to="/projects">Projects</Link> page.
+          which you can see on my{' '}
+          <Link to="/projects" className="text-link">
+            Projects
+          </Link>{' '}
+          page.
         </p>
       </div>
     </section>

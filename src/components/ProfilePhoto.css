@@ -1,0 +1,42 @@
+.profile-photo {
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: linear-gradient(145deg, var(--color-accent-soft), var(--color-bg-accent));
+  border: 3px solid var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.profile-photo--large {
+  width: 148px;
+  height: 148px;
+}
+
+.profile-photo--medium {
+  width: 112px;
+  height: 112px;
+}
+
+.profile-photo__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-photo__initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  user-select: none;
+}
+
+.profile-photo--medium .profile-photo__initials {
+  font-size: 1.5rem;
+}

@@ -1,24 +1,50 @@
-.home h1 {
-  margin-bottom: 1.25rem;
+.home__hero {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+
+.home__photo {
+  animation: page-enter 500ms ease both;
+}
+
+.home__intro {
+  animation: page-enter 500ms 80ms ease both;
+}
+
+.home__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.home__title {
+  font-size: clamp(1.85rem, 4vw, 2.5rem);
+  margin: 0;
+}
+
+.home__summary {
+  animation: page-enter 500ms 160ms ease both;
 }
 
 .home__summary p {
-  color: #444;
+  color: var(--color-text-muted);
   max-width: 65ch;
-}
-
-.home__summary a {
-  color: #1a1a2e;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.home__summary a:hover {
-  opacity: 0.75;
-  text-decoration: underline;
+  font-size: 1.05rem;
 }
 
 .home__summary p:last-child {
   margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .home__hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
 }

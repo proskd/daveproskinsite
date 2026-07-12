@@ -1,9 +1,61 @@
-.page h1 {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.page p {
-  color: #444;
-  max-width: 60ch;
+.page {
+  animation: page-enter var(--transition-base) both;
+}
+
+.page__header {
+  margin-bottom: 2.5rem;
+}
+
+.page__title {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  margin-bottom: 0.75rem;
+}
+
+.page__subtitle {
+  color: var(--color-text-muted);
+  max-width: 55ch;
+  font-size: 1.05rem;
+  margin-bottom: 0;
+}
+
+.page__section {
+  margin-bottom: 2.75rem;
+}
+
+.page__section-title {
+  font-size: 1.125rem;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.text-link {
+  color: var(--color-accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgb(29 78 216 / 35%);
+  text-underline-offset: 3px;
+  transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
+}
+
+.text-link:hover {
+  color: #1e40af;
+  text-decoration-color: rgb(30 64 175 / 55%);
 }

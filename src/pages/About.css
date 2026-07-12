@@ -1,22 +1,23 @@
 .about__header {
-  margin-bottom: 2.5rem;
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 2.75rem;
+}
+
+.about__photo {
+  animation: page-enter 500ms ease both;
+}
+
+.about__intro {
+  animation: page-enter 500ms 80ms ease both;
 }
 
 .about__summary {
-  color: #444;
+  color: var(--color-text-muted);
   max-width: 65ch;
+  font-size: 1.05rem;
   margin-bottom: 0;
-}
-
-.about__section {
-  margin-bottom: 2.5rem;
-}
-
-.about__section h2 {
-  font-size: 1.25rem;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e5e5e5;
 }
 
 .about__experience-list {
@@ -25,72 +26,147 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0;
 }
 
 .about__experience-item {
   display: flex;
+  gap: 1rem;
+  animation: page-enter 400ms ease both;
+}
+
+.about__experience-marker {
+  position: relative;
+  flex-shrink: 0;
+  width: 12px;
+  margin-top: 0.45rem;
+}
+
+.about__experience-marker::before {
+  content: '';
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-accent-soft);
+}
+
+.about__experience-item:not(:last-child) .about__experience-marker::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 4px;
+  width: 2px;
+  height: calc(100% + 1.25rem);
+  background: var(--color-border);
+}
+
+.about__experience-content {
+  flex: 1;
+  display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 
 .about__job-title {
-  font-size: 1.05rem;
+  font-family: var(--font-sans);
+  font-size: 1rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
 }
 
 .about__company {
   margin: 0;
-  color: #555;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
 }
 
 .about__location {
-  color: #777;
+  color: var(--color-text-subtle);
 }
 
 .about__dates {
   flex-shrink: 0;
-  color: #666;
-  font-size: 0.9rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.825rem;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-.about__hobbies-list {
+.about__hobbies-grid {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.25rem;
+  align-items: start;
 }
 
-.about__hobbies-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem 0.75rem;
+.about__hobby-item {
+  animation: page-enter 450ms ease both;
 }
 
-.about__hobby-name {
-  font-weight: 500;
+.about__hobby-item:nth-child(even) .about__hobby-image,
+.about__hobby-item:nth-child(even) .about__hobby-placeholder {
+  transform: translateY(1.25rem);
 }
 
-.about__hobby-detail {
-  color: #666;
-  font-size: 0.95rem;
+.about__hobby-item--portrait .about__hobby-image {
+  max-height: 340px;
+  width: auto;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
-.about__hobby-detail::before {
-  content: '·';
-  margin-right: 0.75rem;
-  color: #bbb;
+.about__hobby-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  transition: transform var(--transition-base);
+}
+
+.about__hobby-placeholder {
+  min-height: 200px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(160deg, var(--color-surface-muted) 0%, var(--color-bg-accent) 100%);
+  border: 1px dashed var(--color-border-strong);
+}
+
+@media (max-width: 768px) {
+  .about__hobbies-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .about__hobby-item:nth-child(even) .about__hobby-image,
+  .about__hobby-item:nth-child(even) .about__hobby-placeholder {
+    transform: none;
+  }
 }
 
 @media (max-width: 600px) {
-  .about__experience-item {
+  .about__header {
     flex-direction: column;
-    gap: 0.35rem;
+  }
+
+  .about__experience-content {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about__hobby-item:nth-child(even) .about__hobby-image,
+  .about__hobby-item:nth-child(even) .about__hobby-placeholder {
+    transform: none;
   }
 }

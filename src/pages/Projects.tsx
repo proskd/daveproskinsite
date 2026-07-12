@@ -1,19 +1,24 @@
 import { projects } from '../data/projects'
+import './Page.css'
 import './Projects.css'
 
 function Projects() {
   return (
     <section className="page projects">
-      <header className="projects__header">
-        <h1>Projects</h1>
-        <p className="projects__intro">
-          Personal apps and side projects I&apos;ve designed and built.
+      <header className="page__header">
+        <h1 className="page__title">Projects</h1>
+        <p className="page__subtitle">
+          Personal apps and side projects I've designed and built.
         </p>
       </header>
 
       <ul className="projects__list">
-        {projects.map((project) => (
-          <li key={project.id} className="project-card">
+        {projects.map((project, index) => (
+          <li
+            key={project.id}
+            className="project-card"
+            style={{ animationDelay: `${index * 80}ms` }}
+          >
             <img
               className="project-card__image"
               src={project.image}
@@ -40,6 +45,11 @@ function Projects() {
                       : {})}
                   >
                     {link.label}
+                    {link.external && (
+                      <span className="project-card__link-icon" aria-hidden="true">
+                        ↗
+                      </span>
+                    )}
                   </a>
                 ))}
               </div>

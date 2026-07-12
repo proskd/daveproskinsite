@@ -5,6 +5,57 @@ export type ExperienceEntry = {
   dates: string
 }
 
+export type HobbyEntry = {
+  name: string
+  detail?: string
+  image?: string
+  imageAlt?: string
+  portrait?: boolean
+}
+
+export const hobbies: HobbyEntry[] = [
+  {
+    name: 'Taekwondo',
+    detail: 'Black belt, 1st Dan',
+    image: '/hobbies/taekwondo.png',
+    imageAlt: 'At a taekwondo competition podium with family',
+    portrait: true,
+  },
+  {
+    name: 'Scuba Diving',
+    image: '/hobbies/travel.png',
+    imageAlt: 'Scuba diving underwater',
+  },
+  {
+    name: 'Rock climbing',
+    image: '/hobbies/rock-climbing.png',
+    imageAlt: 'Rappelling down a waterfall in Jamaica',
+  },
+  {
+    name: 'Traveling',
+    image: '/hobbies/traveling.png',
+    imageAlt: 'Family in front of Cinderella Castle at Disney World',
+    portrait: true,
+  },
+  {
+    name: 'Cooking',
+    image: '/hobbies/cooking.png',
+    imageAlt: 'Making poke in the kitchen',
+    portrait: true,
+  },
+  {
+    name: 'Biking',
+    image: '/hobbies/biking.png',
+    imageAlt: 'Biking with family on a trail',
+  },
+  {
+    name: 'Video games',
+    detail: 'Especially retro ones',
+    image: '/hobbies/video-games.png',
+    imageAlt: 'On Buzz Lightyear Space Ranger Spin at Disney',
+  },
+]
+
 export const experience: ExperienceEntry[] = [
   {
     title: 'Associate Director, Engineering',
