@@ -1,0 +1,9 @@
+.page h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.page p {
+  color: #444;
+  max-width: 60ch;
+}
