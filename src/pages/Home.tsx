@@ -1,13 +1,17 @@
-import './Page.css'
+import { homeSummary } from '../data/home'
+import './Home.css'
 
 function Home() {
+  const paragraphs = homeSummary.split('\n\n')
+
   return (
-    <section className="page">
-      <h1>Welcome</h1>
-      <p>
-        This is your personal site — a place for projects, resume, and more.
-        We&apos;ll design the layout and styling next.
-      </p>
+    <section className="page home">
+      <h1>Hi, I&apos;m Dave</h1>
+      <div className="home__summary">
+        {paragraphs.map((paragraph) => (
+          <p key={paragraph.slice(0, 32)}>{paragraph}</p>
+        ))}
+      </div>
     </section>
   )
 }

@@ -4,7 +4,7 @@ import './Layout.css'
 const navItems = [
   { to: '/', label: 'Home', end: true },
   { to: '/projects', label: 'Projects' },
-  { to: '/resume', label: 'Resume' },
+  { to: '/about', label: 'About Me' },
 ] as const
 
 function Layout() {

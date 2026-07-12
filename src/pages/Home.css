@@ -1,0 +1,12 @@
+.home h1 {
+  margin-bottom: 1.25rem;
+}
+
+.home__summary p {
+  color: #444;
+  max-width: 65ch;
+}
+
+.home__summary p:last-child {
+  margin-bottom: 0;
+}

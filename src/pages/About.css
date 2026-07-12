@@ -1,25 +1,25 @@
-.resume__header {
+.about__header {
   margin-bottom: 2.5rem;
 }
 
-.resume__summary {
+.about__summary {
   color: #444;
   max-width: 65ch;
   margin-bottom: 0;
 }
 
-.resume__section {
+.about__section {
   margin-bottom: 2.5rem;
 }
 
-.resume__section h2 {
+.about__section h2 {
   font-size: 1.25rem;
   margin-bottom: 1.25rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid #e5e5e5;
 }
 
-.resume__experience-list {
+.about__experience-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -28,43 +28,43 @@
   gap: 1.5rem;
 }
 
-.resume__experience-item {
+.about__experience-item {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1.5rem;
 }
 
-.resume__job-title {
+.about__job-title {
   font-size: 1.05rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
 }
 
-.resume__company {
+.about__company {
   margin: 0;
   color: #555;
 }
 
-.resume__location {
+.about__location {
   color: #777;
 }
 
-.resume__dates {
+.about__dates {
   flex-shrink: 0;
   color: #666;
   font-size: 0.9rem;
   white-space: nowrap;
 }
 
-.resume__placeholder {
+.about__placeholder {
   color: #777;
   font-style: italic;
   margin: 0;
 }
 
 @media (max-width: 600px) {
-  .resume__experience-item {
+  .about__experience-item {
     flex-direction: column;
     gap: 0.35rem;
   }
