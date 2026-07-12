@@ -1,0 +1,71 @@
+.resume__header {
+  margin-bottom: 2.5rem;
+}
+
+.resume__summary {
+  color: #444;
+  max-width: 65ch;
+  margin-bottom: 0;
+}
+
+.resume__section {
+  margin-bottom: 2.5rem;
+}
+
+.resume__section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.resume__experience-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.resume__experience-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.resume__job-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.resume__company {
+  margin: 0;
+  color: #555;
+}
+
+.resume__location {
+  color: #777;
+}
+
+.resume__dates {
+  flex-shrink: 0;
+  color: #666;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.resume__placeholder {
+  color: #777;
+  font-style: italic;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .resume__experience-item {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}
