@@ -5,9 +5,6 @@ export type ExperienceEntry = {
   dates: string
 }
 
-export const summary =
-  'Experienced engineering leader specializing in mobile applications, with extensive experience building applications that scale to millions of users.'
-
 export const experience: ExperienceEntry[] = [
   {
     title: 'Associate Director, Engineering',
@@ -31,13 +28,7 @@ export const experience: ExperienceEntry[] = [
     title: 'Director, Mobile Engineering',
     company: 'Shutterfly',
     location: 'New York, NY',
-    dates: '2015–2019',
-  },
-  {
-    title: 'Senior Software Developer',
-    company: 'Shutterfly',
-    location: 'New York, NY',
-    dates: '2013–2014',
+    dates: '2013–2019',
   },
   {
     title: 'Co-Founder',

@@ -7,6 +7,18 @@
   max-width: 65ch;
 }
 
+.home__summary a {
+  color: #1a1a2e;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.home__summary a:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}
+
 .home__summary p:last-child {
   margin-bottom: 0;
 }

@@ -1,4 +1,4 @@
-import { experience, summary } from '../data/resume'
+import { experience } from '../data/about'
 import './About.css'
 
 function About() {
@@ -6,11 +6,16 @@ function About() {
     <section className="page about">
       <header className="about__header">
         <h1>About Me</h1>
-        <p className="about__summary">{summary}</p>
+
+        <p className="about__summary">
+          I'm an experienced engineering leader specializing in building mobile applications on iOS and Android. My
+          experience spans a wide variety of technologies and domains. I love working on products
+          that real people use and benefit from.
+        </p>
       </header>
 
       <section className="about__section" aria-labelledby="experience-heading">
-        <h2 id="experience-heading">Experience</h2>
+        <h2 id="experience-heading">Professional Experience</h2>
         <ol className="about__experience-list">
           {experience.map((job) => (
             <li key={`${job.company}-${job.dates}`} className="about__experience-item">
@@ -31,9 +36,32 @@ function About() {
 
       <section className="about__section" aria-labelledby="interests-heading">
         <h2 id="interests-heading">Hobbies &amp; Interests</h2>
-        <p className="about__placeholder">
-          Coming soon — board games, outdoor activities, and more.
-        </p>
+
+        <ul className="about__hobbies-list">
+          <li>
+            <span className="about__hobby-name">Taekwondo</span>
+            <span className="about__hobby-detail">Black belt, 1st Dan</span>
+          </li>
+          <li>
+            <span className="about__hobby-name">Rock climbing</span>
+          </li>
+          <li>
+            <span className="about__hobby-name">Biking</span>
+          </li>
+          <li>
+            <span className="about__hobby-name">Cooking</span>
+          </li>
+          <li>
+            <span className="about__hobby-name">Video games</span>
+            <span className="about__hobby-detail">Especially retro ones</span>
+          </li>
+          <li>
+            <span className="about__hobby-name">Traveling</span>
+          </li>
+          <li>
+            <span className="about__hobby-name">Studying Japanese</span>
+          </li>
+        </ul>
       </section>
     </section>
   )
