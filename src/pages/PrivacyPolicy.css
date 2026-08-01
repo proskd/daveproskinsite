@@ -1,0 +1,15 @@
+/* Minimal page-specific styles for the Privacy Policy page */
+.privacy__content {
+  max-width: 65ch;
+}
+
+.privacy p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.privacy__content h3.page__section-title {
+  font-size: 1rem;
+  text-transform: none;
+  margin-bottom: 0.75rem;
+}
