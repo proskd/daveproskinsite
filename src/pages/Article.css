@@ -1,0 +1,41 @@
+.article-page__header {
+  margin-bottom: 3rem;
+}
+
+.article-page__date {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.75rem;
+}
+
+.article-page__title {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.article-page__excerpt {
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  max-width: 65ch;
+  margin-bottom: 0;
+}
+
+.article__body {
+  max-width: unset;
+}
+
+.article__content-blockquote {
+  background: var(--color-surface-muted);
+  border-left: 3px solid var(--color-accent);
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  border-radius: 0 var(--radius-sm);
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
