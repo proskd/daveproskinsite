@@ -8,7 +8,7 @@ if (!(_orig instanceof Function || typeof _orig === 'function')) {
   ;(globalThis as any).Buffer = class PolyfillBuffer {
     #buf: Uint8Array
 
-    constructor(input?: string | Buffer | readonly number[] | ArrayBufferLike | SharedArrayBuffer, encOrOffset?: BufferEncoding | number, length?: number) {
+    constructor(input?: string | Buffer | readonly number[] | ArrayBufferLike | SharedArrayBuffer, encOrOffset?: BufferEncoding | number, _length?: number) {
       if (typeof input === 'string') {
         const encoding = (encOrOffset as BufferEncoding) ?? 'utf8'
         let bytes: number[]
@@ -57,15 +57,15 @@ if (!(_orig instanceof Function || typeof _orig === 'function')) {
     length(): number { return this.#buf.length }
 
     slice(start?: number, end?: number): PolyfillBuffer {
-      return new PolyfillBuffer(this.#buf.slice(start, end)) as PolyfillBuffer
+      return new PolyfillBuffer([...this.#buf.slice(start, end)]) as PolyfillBuffer
     }
 
-    #_fromBase64(b64: string): number[] {
+    _fromBase64(b64: string): number[] {
       const binary = atob(b64)
       return [...binary].map(c => c.charCodeAt(0))
     }
 
-    #_fromHex(hex: string): number[] {
+    _fromHex(hex: string): number[] {
       const out: number[] = []
       for (let i = 0; i < hex.length; i += 2) {
         out.push(parseInt(hex.substring(i, i + 2), 16))
