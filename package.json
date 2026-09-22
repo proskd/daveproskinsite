@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node scripts/generate-articles-manifest.mjs && vite",
     "build": "tsc -b && vite build && node scripts/generate-articles-manifest.mjs",
+    "importArticles": "node scripts/import-articles.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit"
   },
