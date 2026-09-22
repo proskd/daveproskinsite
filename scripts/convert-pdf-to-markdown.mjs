@@ -9,7 +9,7 @@ import { resolve, dirname, basename, extname, join } from 'path'
 import { createInterface } from 'readline'
 
 function parseArgs(argv) {
-  const flags = { verbose: false, extractImages: false, applyHeuristics: true }
+  const flags = { verbose: false, extractImages: false, applyHeuristics: true, skipPrompts: false }
   let positional = []
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -17,6 +17,7 @@ function parseArgs(argv) {
       const key = arg.slice(2)
       const next = argv[i + 1]
       if (key === 'no-heuristics') { flags.applyHeuristics = false }
+      else if (key === 'skip-prompts' || key === 'batch-mode') { flags.skipPrompts = true }
       else if (['verbose', 'extract-images'].includes(key)) {
         flags[key.replace('-', '_')] = next && !next.startsWith('--')
         if (flags[key.replace('-', '_')]) i++
@@ -199,7 +200,7 @@ async function convert(inputPath, oc) {
   const today = new Date().toISOString().split('T')[0]
   let fmTitle = oc.title || fallbackTitle, fmDate = oc.date || today, fmExcerpt = oc.excerpt || '', fmSlug = oc.slug || slugifyTitle(fmTitle), coverImage = undefined
 
-  if (!oc.title && !oc.date && !oc.excerpt && !oc.slug) {
+  if (!oc.title && !oc.date && !oc.excerpt && !oc.slug && !oc.skip_prompts) {
     console.log('\n\x1b[33mInteractive mode: please provide article metadata.\x1b[0m\n')
     const answers = await interactiveFrontmatter(fmTitle, fmSlug, fmDate, fmExcerpt)
     fmTitle = answers.title; fmDate = answers.date; fmExcerpt = answers.excerpt; fmSlug = answers.slug; coverImage = answers.coverImage
@@ -250,6 +251,7 @@ async function main() {
     console.error('  --slug           URL slug')
     console.error('  --extract-images Extract embedded PDF images (optional)')
     console.error('  --no-heuristics  Skip style detection; raw text only')
+    console.error('  --skip-prompts   Skip interactive prompts (use defaults)')
     console.error('  --verbose        Print extra diagnostics')
     console.error('')
     console.error('Examples:')
