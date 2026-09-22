@@ -14,15 +14,17 @@ const farmToTableBodyNode: React.JSX.Element = (
         I posted a little while ago about an experiment I&#39;ve been working on for the past few
         weeks. I was really surprised at the reactions and questions I got, so I thought it would be
         worth taking a pause (while my coding agent crunches away) to share where I&#39;m at and give
-        anyone reading a look into what I&#39;ve got cooking. &#8212;&#8212; More than 10 years have
-        passed since I dreamed up the idea for an app where I could store all the recipes me and my
-        wife have accumulated over the years. I know there are probably tons of recipe apps available,
-        but none of them are&#8230; mine. By and large, I don&#39;t always get much time to spend
-        coding on my own time. Between work, family, and all the activities life throws at us, it&#39;s
-        really hard to sit down and write a lot of code. Usually when I get inspired, or find a really
-        fun side-project is when I disappear into my MacBook. But of course LLMs have changed the game
-        recently. So I figured, with an itch to do some development that needed scratching, I could
-        finally dive in.
+        anyone reading a look into what I&#39;ve got cooking.
+      </p>
+      <p>
+        More than 10 years have passed
+        since I dreamed up the idea for an app where I could store all the recipes me and my wife have
+        accumulated over the years. I know there are probably tons of recipe apps available, but none of
+        them are&#8230; mine. By and large, I don&#39;t always get much time to spend coding on my own
+        time. Between work, family, and all the activities life throws at us, it&#39;s really hard to sit
+        down and write a lot of code. Usually when I get inspired, or find a really fun side-project is
+        when I disappear into my MacBook. But of course LLMs have changed the game recently. So I figured,
+        with an itch to do some development that needed scratching, I could finally dive in.
       </p>
       <p>
         The only problem - I can be kinda cheap when it comes to paying for a service when I&#39;m not
@@ -62,6 +64,18 @@ const farmToTableBodyNode: React.JSX.Element = (
         </li>
       </ul>
     </section>
+    <section className="page__section" aria-labelledby="setup-heading">
+      <h2 id="setup-heading" className="page__section-title">Let's talk about tips</h2>
+      <p>How did I get here, and if you’re brave enough to follow me, what tips can I share?
+</p>
+      <ul>
+        <li>Write down your plan - and then some</li>
+        <li>Keep your work bite sized</li>
+        <li>Get to good (enough) and go</li>
+        <li>Know when (and be ready) to step in</li>
+        <li>I say patience</li>
+      </ul>
+    </section>
     <section className="page__section" aria-labelledby="tip1-heading">
       <h2 id="tip1-heading" className="page__section-title">
         Tip 1: Write down your plan - and then some
@@ -69,7 +83,10 @@ const farmToTableBodyNode: React.JSX.Element = (
       <p>
         This is the step where you might argue I cheated, because I didn&#39;t actually use local LLMs at
         all. This was more about convenience and speed, more than anything else, but I never actually
-        paid for a subscription, so I&#39;m calling this one a win regardless. Local models, no matter how
+        paid for a subscription, so I&#39;m calling this one a win regardless.
+      </p>
+      <p>
+        Local models, no matter how
         good your setup, aren&#39;t going to carry the same massively remembered context a large hosted
         model does. So if you want any success, it really pays to have a good plan up front when
         starting any project or task. This is where I&#39;d spend the first portion of your time and
@@ -82,28 +99,32 @@ const farmToTableBodyNode: React.JSX.Element = (
         on, making this your first step. If you ask your LLM to produce a really detailed coding plan,
         you&#39;re far more likely to have success when you ask the agent to actually write the code.
       </p>
-      <p>Some good outputs to consider:</p>
-      <ul>
-        <li>Detailed requirements</li>
-        <li>An architecture diagram</li>
-        <li>Decision logs</li>
-        <li>An explicit task list (usually things I have in place before any actual coding happens)</li>
-      </ul>
-      <p>Example prompt:</p>
-      <pre className="article__content-blockquote">
-        We are working on the next feature in the app. You will propose a detailed implementation plan to work on
-        this, and write a md file at the root of this repo with the plan that an agent can work through.
-      </pre>
+      <p>
+        Some good outputs to consider - detailed requirements, an architecture diagram, decision logs, and an explicit task list are usually things I have in place before any actual coding happens.
+      </p>
+      <p>
+        <strong>Example prompt: </strong>We are working on the next feature in the app.  You will propose a detailed implementation plan to work on this, and write a md file at the root of this repo with the plan that an agent can work through.
+      </p>
     </section>
 
     <section className="page__section" aria-labelledby="tip2-heading">
       <h2 id="tip2-heading" className="page__section-title">Tip 2: Keep your work bite-sized</h2>
       <p>
-        Every interaction with a local LLM costs context window, so you want to keep each request
-        focused. If I&#39;m building a new screen or feature, I&#39;ll break it down into the smallest possible
-        meaningful chunks and ask for just that one thing. Yes, sometimes I let the agent run them
-        itself, if I&#39;m feeling bold, but that also uses precious context and often wastes a good amount
-        of time where it&#39;d actually be faster for me to do it myself.
+        Local models have a smaller context window than larger hosted LLMs, so you want to keep each
+        request focused on one thing. Smaller chunks of work are easier for the model to handle
+        effectively, since it doesn&#39;t have the same expansive context as something like Claude or
+        Cursor. I&#39;ll break down features into small, atomic tasks and ask the agent to only do that
+        one thing at a time. Yes, sometimes I let the agent run some of these itself, if I&#39;m feeling
+        bold, but that also uses precious context and often wastes a good amount of time where it&#39;d
+        actually be faster for me to do it myself.
+      </p>
+      <p>
+        It&#39;s all a lot of waiting around, and to be honest, it kind of is. While my local agent can
+        plow through some great work, each task usually takes anywhere from around 5-10 minutes (or
+        more) at minimum. That is not the same kind of instant feedback you&#39;re used to if you&#39;re
+        vibing it with Claude or Cursor. &mdash; It&#39;s for this reason that having a good plan, a good
+        set up, and a good idea of what good is going to look like is so important. When every task takes
+        that long, you want to make sure you have the best chance of success every time.
       </p>
     </section>
 
@@ -119,6 +140,31 @@ const farmToTableBodyNode: React.JSX.Element = (
       </p>
     </section>
 
+
+    <section className="page__section" aria-labelledby="agent-config-heading">
+      <h2 id="agent-config-heading" className="page__section-title">Agent configuration</h2>
+      <p>
+        There&#39;s a bit more to this section that I can share though - notably, the exact configuration of
+        Cline and the agent guidelines. You will almost certainly need to adjust these from the defaults
+        to get to a workable loop. Here&#39;s where I landed:
+      </p>
+      <ul>
+        <li><strong>Context Window:</strong> 120k</li>
+        <li><strong>Timeout:</strong> 300s</li>
+      </ul>
+      <p>
+        The above configuration made it much more likely that Ollama wouldn&#39;t time out on an initial
+        response, nor churn beyond what was reasonable (most of the time). I probably could expand the
+        window (and indeed I started larger), but I found that once the context window got consumed to
+        around ~60-80k, my results got worse, even with Agentic context compaction turned on.
+      </p>
+      <p>
+        Lastly - don&#39;t go crazy with your agent&#39;s guidelines files. Keep them brief, simple, to the point,
+        and give the agent what it needs on every prompt and nothing more. Claude and other frontier
+        models will write robust, detailed agents guidelines files, but in your own kitchen, size matters.
+        Don&#39;t overcook it and you&#39;ll do just fine.
+      </p>
+    </section>
 
     <section className="page__section" aria-labelledby="tip4-heading">
       <h2 id="tip4-heading" className="page__section-title">
@@ -144,7 +190,7 @@ const farmToTableBodyNode: React.JSX.Element = (
         it&#39;s highly likely you&#39;re going to hit a point where you spin your wheels - a lot.
       </p>
       <p>
-        When you find yourself in a stuck loop where the LLM just can&#39;t get a task done, always try and
+        When you find yourself in a stuck-loop where the LLM just can&#39;t get a task done, always try and
         simplify. Break it down to smaller chunks, and ask the agent to slow down. Try having it just do
         1 class or even 1 method if you really need to keep it small.
       </p>
@@ -157,41 +203,12 @@ const farmToTableBodyNode: React.JSX.Element = (
         still probably faster than your typing though. Be patient! All this sounds like a lot of waiting
         around, and to be honest, it kind of is. While my local agent can plow through some great work,
         each task usually takes anywhere from around 5-10 minutes (or more) at minimum. That is not the
-        same kind of instant feedback you&#39;re used to if you&#39;re vibing it with Claude or Cursor.
-      </p>
-      <p>
-        It&#39;s for this reason that having a good plan, a good setup, and a good idea of what good is
+        same kind of instant feedback you&#39;re used to if you&#39;re vibing it with Claude or Cursor. &mdash;
+        It&#39;s for this reason that having a good plan, a good set up, and a good idea of what good is
         going to look like is so important. When every task takes that long, you want to make sure you
         have the best chance of success every time.
       </p>
     </section>
-
-    <section className="page__section" aria-labelledby="agent-config-heading">
-      <h2 id="agent-config-heading" className="page__section-title">Agent configuration</h2>
-      <p>
-        There&#39;s a bit more to this section that I can share though - notably, the exact configuration of
-        Cline and the agent guidelines. You will almost certainly need to adjust these from the defaults
-        to get to a workable loop. Here&#39;s where I landed:
-      </p>
-      <ul>
-        <li><strong>Context Window:</strong> 120k</li>
-        <li><strong>Timeout:</strong> 300s</li>
-      </ul>
-      <p>
-        The above configuration made it much more likely that Ollama wouldn&#39;t time out on an initial
-        response, nor churn beyond what was reasonable (most of the time). I probably could expand the
-        window (and indeed I started larger), but I found that once the context window got consumed to
-        around ~60-80k, my results got worse, even with Agentic context compaction turned on.
-      </p>
-      <hr />
-      <p>
-        Lastly - don&#39;t go crazy with your agent&#39;s guidelines files. Keep them brief, simple, to the point,
-        and give the agent what it needs on every prompt and nothing more. Claude and other frontier
-        models will write robust, detailed agent guidelines files, but in your own kitchen, size matters.
-        Don&#39;t overcook it and you&#39;ll do just fine.
-      </p>
-    </section>
-
     <section className="page__section" aria-labelledby="conclusion-heading">
       <h2 id="conclusion-heading" className="page__section-title">Et - Voila!</h2>
       <p>
