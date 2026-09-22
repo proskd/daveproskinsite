@@ -6,8 +6,6 @@ excerpt: "Lessons from the test kitchen — experimenting with local models, Cli
 coverImage: ./banner.png
 ---
 
-![Farm-to-table](./banner.png)
-
 ## Introduction
 
 I posted a little while ago about an experiment I've been working on for the past few weeks. I was really surprised at the reactions and questions I got, so I thought it would be worth taking a pause (while my coding agent crunches away) to share where I'm at and give anyone reading a look into what I've got cooking.
@@ -41,6 +39,8 @@ How did I get here, and if you're brave enough to follow me, what tips can I sha
 - Know when (and be ready) to step in
 - I say patience
 
+![Agent config](./section1.jpg)
+
 ## Tip 1: Write down your plan — and then some
 
 This is the step where you might argue I cheated, because I didn't actually use local LLMs at all. This was more about convenience and speed, more than anything else, but I never actually paid for a subscription, so I'm calling this one a win regardless.
@@ -53,12 +53,15 @@ Some good outputs to consider — detailed requirements, an architecture diagram
 
 **Example prompt:** We are working on the next feature in the app. You will propose a detailed implementation plan to work on this, and write a md file at the root of this repo with the plan that an agent can work through.
 
+![Context compaction](./section2.jpg)
 
 ## Tip 2: Keep your work bite-sized
 
 Local models have a smaller context window than larger hosted LLMs, so you want to keep each request focused on one thing. Smaller chunks of work are easier for the model to handle effectively, since it doesn't have the same expansive context as something like Claude or Cursor. I'll break down features into small, atomic tasks and ask the agent to only do that one thing at a time. Yes, sometimes I let the agent run some of these itself, if I'm feeling bold, but that also uses precious context and often wastes a good amount of time where it'd actually be faster for me to do it myself.
 
 It's all a lot of waiting around, and to be honest, it kind of is. While my local agent can plow through some great work, each task usually takes anywhere from around 5–10 minutes (or more) at minimum. That is not the same kind of instant feedback you're used to if you're vibing it with Claude or Cursor — it's for this reason that having a good plan, a good setup, and a good idea of what good is going to look like is so important. When every task takes that long, you want to make sure you have the best chance of success every time.
+
+![Agent config details](./section3.jpg)
 
 ## Tip 3: Get to good and go
 
@@ -71,16 +74,11 @@ There's a bit more to this section that I can share though — notably, the exac
 - **Context Window:** 120k
 - **Timeout:** 300s
 
-![Agent config](./section1.jpg)
-
 The above configuration made it much more likely that Ollama wouldn't time out on an initial response, nor churn beyond what was reasonable (most of the time). I probably could expand the window (and indeed I started larger), but I found that once the context window got consumed to around ~60–80k, my results got worse, even with Agentic context compaction turned on.
-
-![Context compaction](./section2.jpg)
 
 Lastly — don't go crazy with your agent's guidelines files. Keep them brief, simple, to the point, and give the agent what it needs on every prompt and nothing more. Claude and other frontier models will write robust, detailed agents guidelines files, but in your own kitchen, size matters. Don't overcook it and you'll do just fine.
 
-![Agent config details](./section3.jpg)
-
+![Fastlane scripts](./section4.jpg)
 
 ## Tip 4: Know when (and be ready) to step in
 
@@ -88,17 +86,15 @@ Look — maybe Claude and others can vibe-code you a massive app without you kno
 
 Look at what can happen from the get go — in my iOS app, I should've set up command line scripts like Fastlane to compile and test from the beginning. It saves a ton of time to just fire off a command to verify the work of my agent. Yes, sometimes I let the agent run them itself, if I'm feeling bold, but that also uses precious context and often wastes a good amount of time where it'd actually be faster for me to do it myself.
 
-![Fastlane scripts](./section4.jpg)
-
 Beyond that, know your domain. LLMs are likely going to output the code way faster than you can (even locally, accounting for the processing time), but if you don't know what you're working on, it's highly likely you're going to hit a point where you spin your wheels — a lot.
 
 When you find yourself in a stuck-loop where the LLM just can't get a task done, always try and simplify. Break it down to smaller chunks, and ask the agent to slow down. Try having it just do 1 class or even 1 method if you really need to keep it small.
 
+![Patience](./section5.jpg)
+
 ## Tip 5: I say patience
 
 Coding with a local LLM, no matter how good your hardware, is not faster than the big boys. It's still probably faster than your typing though. Be patient! All this sounds like a lot of waiting around, and to be honest, it kind of is. While my local agent can plow through some great work, each task usually takes anywhere from around 5–10 minutes (or more) at minimum. That is not the same kind of instant feedback you're used to if you're vibing it with Claude or Cursor — it's for this reason that having a good plan, a good setup, and a good idea of what good is going to look like is so important. When every task takes that long, you want to make sure you have the best chance of success every time.
-
-![Patience](./section5.jpg)
 
 ## Et - Voila!
 
