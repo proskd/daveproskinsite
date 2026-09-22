@@ -20,15 +20,10 @@ function Article() {
   useEffect(() => {
     if (!slug) return
 
-    // Try the new Markdown-based path first
     fetch(`/articles/${slug}/Article.md`, { cache: 'no-store' })
       .then(async (res) => {
-        if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`)
-        if (res.status === 404) throw new Error('not-found')
+        if (!res.ok) throw new Error(res.status === 404 ? 'not-found' : `HTTP ${res.status}`)
         const text = await res.text()
-        return text
-      })
-      .then((text) => {
         if (!text) throw new Error('empty-article')
           // console.log('fetched article text:', text)
         try {
@@ -40,19 +35,7 @@ function Article() {
           throw err
         }
       })
-      .catch(() => {
-        // Fall back to old JSX-based article map (for backward compat during transition)
-        import('../data/articles')
-          .then((mod) => {
-            const article = mod.articleMap[slug]
-            if (article) {
-              setState({ kind: 'success', frontmatter: { slug, title: article.title, date: article.date, excerpt: article.excerpt }, content: 'fallback' })
-            } else {
-              setState({ kind: 'error', message: 'not-found' })
-            }
-          })
-          .catch(() => setState({ kind: 'error', message: 'not-found' }))
-      })
+      .catch(() => setState({ kind: 'error', message: 'not-found' }))
   }, [slug])
 
   // ── Loading ───────────────────────────────────────────────────────

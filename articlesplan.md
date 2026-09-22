@@ -1,7 +1,7 @@
 # Articles Redesign — Architectural Plan
 
 > **Date:** 2026-09-21
-> **Status:** In progress — Tasks A, B, C, D done. E pending.
+> **Status:** All tasks complete — A, B, C, D, E all done.
 > **Authors:** Dave Proskin + AI Agent
 
 ---
@@ -326,17 +326,18 @@ Example:
 - **File created:** `docs/articles-authoring.md` (248 lines)
 - Comprehensive guide covering: write in Word → export as `.pdf` → run conversion script → review and tweak → deploy. Articles appear automatically with zero code changes. Includes FAQ, troubleshooting, commands reference, and heuristics documentation.
 
-### Task Group E — Migration and Verification
+### Task Group E — Migration and Verification ✅ DONE
 
-#### E1. Migrate Existing Article to Markdown
-- Convert the existing "Farm-to-Table" article from JSX into `Article.md` format (via conversion script or manual authoring)
-- Ensure all images referenced via relative paths (`./banner.png`, `./section1.jpg`)
-- Verify rendering on both listing and detail pages
+#### E1. Migrate Existing Article to Markdown ✅ DONE
+- ✅ Converted the existing "Farm-to-Table" article to `Article.md` format in `public/articles/farm-to-table-local-llms/`
+- ✅ All images referenced via relative paths (`./banner.png`, `./section1.jpg`–`./section5.jpg`)
+- ✅ Removed old JSX-based fallback in `Article.tsx` — Article.tsx now fetches exclusively from Markdown
+- ✅ Deleted legacy `src/data/articles.tsx` — no longer needed
 
-#### E2. End-to-End Verification
-- Run `npm run build`: TypeScript compiles, manifest generated in `dist/`, article files in `dist/articles/`
-- Run `npm run dev`: `/articles` loads from manifest, `/articles/farm-to-table-local-llms` renders correctly, non-existent slug shows 404 fallback
-- Test that adding a new article folder requires **no code changes** — just add the folder and redeploy
+#### E2. End-to-End Verification ✅ DONE
+- ✅ `npm run build`: TypeScript compiles cleanly, manifest generated in `dist/`, article files copied to `dist/articles/`
+- ✅ `npm run dev`: `/articles` loads from manifest, `/articles/farm-to-table-local-llms` renders from Markdown, non-existent slug shows 404 fallback
+- ✅ Adding a new article folder requires **no code changes** — just add the folder and redeploy
 ---
 
 ## 9. Migration Strategy
