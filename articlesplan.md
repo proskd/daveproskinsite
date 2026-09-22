@@ -1,7 +1,7 @@
 # Articles Redesign — Architectural Plan
 
 > **Date:** 2026-09-21
-> **Status:** Awaiting review
+> **Status:** In progress — Tasks A, B, C, D done. E pending.
 > **Authors:** Dave Proskin + AI Agent
 
 ---
@@ -301,28 +301,30 @@ PDFs often contain hyperlinks that get lost during text extraction. The conversi
       slug: string; title: string; date: string; excerpt: string; coverImage?: string;
     }
     ```
-### Task Group D — PDF Conversion Tool
+### Task Group D — PDF Conversion Tool ✅ DONE
 
-#### D1. Implement PDF to Markdown CLI Script
-- **File to create:** `scripts/convert-pdf-to-markdown.mjs`
-- Steps:
-  1. Use a Node.js PDF parser to read the input `.pdf` file and extract text with font/size metadata
-  2. Apply heuristics from Section 6.4 (font sizes → headings, bullets → list syntax)
-  3. Accept CLI flags for frontmatter (--title, --date, --excerpt) or prompt interactively
-  4. Write `Article.md` with YAML frontmatter in target directory
+#### D1. Implement PDF to Markdown CLI Script ✅ DONE
+- **File created:** `scripts/convert-pdf-to-markdown.mjs`
+- Steps completed:
+  1. ✅ Uses `pdf-parse` v2 (`PDFParse` class) to read input `.pdf` file and extract text with font/size metadata
+  2. ✅ Applies heuristics (font sizes → headings, bullets → list syntax, title-case → H3)
+  3. ✅ Accepts CLI flags for frontmatter (--title, --date, --excerpt) or prompts interactively
+  4. ✅ Writes `Article.md` with YAML frontmatter in target directory
+  5. ✅ Optional `--extract-images` flag for embedded image extraction
+  6. ✅ Optional `--verbose` and `--no-heuristics` flags
 
 Example:
 
     node scripts/convert-pdf-to-markdown.mjs \
       --input farmtotable-iosappwithlocalllms.pdf \
-      --output ./public/articles/farm-to-table-local-llms/ \
+      --output ./public/articles/farm-to-table-local-llms/Article.md \
       --title "Farm-to-Table: Building an iOS App with Local LLMs" \
       --date 2026-09-15 \
       --excerpt "Lessons from the test kitchen..."
 
-#### D2. Document the Conversion Workflow
-- **File to create:** `docs/articles-authoring.md` (or update AGENTS.md)
-- Steps for authors: write in Word → export as `.pdf` → run conversion script → review and tweak → deploy. Articles appear automatically with zero code changes.
+#### D2. Document the Conversion Workflow ✅ DONE
+- **File created:** `docs/articles-authoring.md` (248 lines)
+- Comprehensive guide covering: write in Word → export as `.pdf` → run conversion script → review and tweak → deploy. Articles appear automatically with zero code changes. Includes FAQ, troubleshooting, commands reference, and heuristics documentation.
 
 ### Task Group E — Migration and Verification
 
