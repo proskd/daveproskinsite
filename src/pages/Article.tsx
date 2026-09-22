@@ -95,6 +95,21 @@ function Article() {
   const fmTitle = String(frontmatter.title)
   const fmExcerpt = String(frontmatter.excerpt)
 
+  // Normalize relative image paths in markdown content to absolute URLs.
+  // Markdown images like ![alt](./section.jpg) become broken when the page URL
+  // contains nested path segments (e.g. /articles/{slug}/).  Resolve them here
+  // so every inline image loads from the correct public/ folder.
+  const articleBaseUrl = `/articles/${slug}`
+  let bodyContent = content
+  bodyContent = bodyContent.replace(
+    /!\[([^\]]*)\]\(\.\/([^)]+)\)/g,
+    `![${'$1'}](${articleBaseUrl}/$2)`
+  )
+  bodyContent = bodyContent.replace(
+    /!\[([^\]]*)\]\(([^/#?][^)?#]*)\)/g,
+    `![${'$1'}](${articleBaseUrl}/$2)`
+  )
+
   return (
     <section className="page article-page">
       <header className="article-page__header">
@@ -135,7 +150,7 @@ function Article() {
             },
           }}
         >
-          {content}
+          {bodyContent}
         </ReactMarkdown>
       </div>
     </section>
