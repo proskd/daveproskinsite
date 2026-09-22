@@ -30,8 +30,15 @@ function Article() {
       })
       .then((text) => {
         if (!text) throw new Error('empty-article')
-        const parsed = parseArticle(text)
-        setState({ kind: 'success', frontmatter: parsed.frontmatter, content: parsed.content })
+          // console.log('fetched article text:', text)
+        try {
+          const parsed = parseArticle(text)
+          console.log('parsed article text:', parsed)
+          setState({ kind: 'success', frontmatter: parsed.frontmatter, content: parsed.content })
+        } catch (err) {
+          console.error('Failed to parse article:', err)
+          throw err
+        }
       })
       .catch(() => {
         // Fall back to old JSX-based article map (for backward compat during transition)
@@ -39,7 +46,7 @@ function Article() {
           .then((mod) => {
             const article = mod.articleMap[slug]
             if (article) {
-              setState({ kind: 'success', frontmatter: { slug, title: article.title, date: article.date, excerpt: article.excerpt }, content: '' })
+              setState({ kind: 'success', frontmatter: { slug, title: article.title, date: article.date, excerpt: article.excerpt }, content: 'fallback' })
             } else {
               setState({ kind: 'error', message: 'not-found' })
             }
