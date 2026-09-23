@@ -178,102 +178,224 @@ trimming discussed above. Instead:
 
 ---
 
-## 5. Explicit implementation tasks, by phase
+## 5. Numbered implementation tasks (agents work through these in order)
 
-Each phase ends with a **🔍 Human validation** checkpoint — the agent should
-stop there and wait for you rather than continuing into the next phase.
+Each **Phase** groups related tasks and ends with a **🔍 Human validation**
+checkpoint. Agents must stop at each checkpoint and wait for confirmation before
+proceeding to the next phase.
 
-### Phase 1 — Diagnostics tool
-- [ ] **T1.1** Add `mupdf` as a dependency; confirm it loads the sample PDF
-  and can iterate pages.
-- [ ] **T1.2** Extract structured text spans per page (see Step 2 above) and
-  print, per span: page number, `y0`, text content, font name, size, and
-  whatever bold/italic signal the package exposes.
-- [ ] **T1.3** Extract the list of embedded images per page with bounding
-  boxes; print filename/xref, page number, and bbox for each.
+### Phase 1 — Diagnostics tool (`convert-pdf-to-markdown.mjs --debug`)
+
+This is the first script built. It does nothing but dump structured data from a
+PDF so we can calibrate classification thresholds empirically.
+
+- [ ] **T1.1** Add `mupdf` as a dependency; confirm it loads the sample PDF and
+  can iterate pages.
+- [ ] **T1.2** Extract structured text spans per page (blocks → lines → spans)
+  and print, per span: `page`, `y0`, `text`, `font`, `size`, and whatever
+  bold/italic signal the package exposes.
+- [ ] **T1.3** Extract the list of embedded images per page with bounding boxes;
+  print xref/filename, page number, and bbox for each.
 - [ ] **T1.4** Compute and print the document's mode font size (the body-text
   baseline) and the distinct font sizes present, sorted descending, with a
   count of spans at each size.
+
+**Output artifact:** A single file `convert-pdf-to-markdown.mjs` that accepts
+`--input <pdf> --debug`, prints the diagnostics to stdout, and exits. No markdown
+generation yet.
 
 **🔍 Human validation (you):**
 - Review the span dump. Confirm: which size(s) correspond to Title, which to
   section headers ("Tip N" lines), which is body text.
 - Confirm whether bold/italic is detectable from the font name string or
-  needs a different signal from the package — write this down as a decision
-  in this doc (add a "Decisions log" entry at the bottom) since Phase 2
-  depends on it.
+  needs a different signal — write this down as a decision in this doc (add a
+  "Decisions log" entry at the bottom) since Phase 2 depends on it.
 - Confirm the image bbox output looks sane (reasonable coordinates, one entry
   per image you'd expect from the PDF).
 
 ### Phase 2 — Block classification + text normalization (no images yet)
-- [ ] **T2.1** Merge spans into lines, lines into blocks, using vertical
-  gaps/`y0` proximity.
-- [ ] **T2.2** Classify each block per Step 4's rules (title / H2 heading /
-  unordered list item / ordered list item-or-heading / paragraph), using the
-  thresholds confirmed in Phase 1's validation.
-- [ ] **T2.3** Apply the text normalization rules from Step 6 (space-hyphen-
-  space → em dash; whitespace cleanup).
-- [ ] **T2.4** Render the classified stream to markdown (headings, lists,
-  paragraphs) — no images, no bold/italic yet.
+
+Build the core conversion logic: classify each block and render to plain markdown.
+Images and inline bold/italic come later.
+
+- [ ] **T2.1** Merge spans into lines, lines into blocks, using vertical gaps /
+  `y0` proximity heuristics.
+- [ ] **T2.2** Classify each block: Title (top-of-page, large font), H2 heading
+  (moderately larger than baseline and/or bold), unordered list item (starts with
+  `•`), ordered list or heading candidate (starts with `\d+\.` — flag this
+  ambiguity), paragraph (body-size text). Use the thresholds confirmed in Phase 1.
+- [ ] **T2.3** Apply text normalization rules: ` - ` → ` — ` (em dash); collapse
+  repeated whitespace; trim trailing spaces per line. Preserve typographic quotes
+  as-is for now.
+- [ ] **T2.4** Render the classified stream to markdown using headings, lists,
+  and paragraphs only — no images, no bold/italic yet.
+
+**Output artifact:** `convert-pdf-to-markdown.mjs` with `--input <pdf>` (no `--debug`)
+generates a raw `.md` body containing only headings, lists, and paragraphs.
 
 **🔍 Human validation (you):**
-- Read the generated markdown top to bottom. Does every heading in the PDF
-  show up as a heading? Does anything get misclassified (e.g., a long
-  paragraph mistaken for a list item, or vice versa)?
+- Read the generated markdown top to bottom. Does every heading in the PDF show
+  up as a heading? Does anything get misclassified (e.g., a long paragraph
+  mistaken for a list item, or vice versa)?
 - Specifically check the numbered "how did I get here" list block against the
-  "Tip N" section headers — confirm the ambiguity flagged in Section 3 is
-  being handled the way you expect (both currently rendering as some form of
+  "Tip N" section headers — confirm the ambiguity flagged in Section 3 is being
+  handled the way you expect (both currently rendering as some form of
   list/heading, not silently merged or dropped).
 
 ### Phase 3 — Image extraction + inline placement
-- [ ] **T3.1** Save each embedded image to `images/` with sequential naming.
-- [ ] **T3.2** Merge image blocks into the ordered stream from Phase 2 by
-  `y0` position (per Step 3).
+
+- [ ] **T3.1** Save each embedded image to an `images/` subdirectory within the
+  output folder using sequential deterministic naming (`banner.png`, `section1.jpg`, …)
+  matching the pattern already used in existing articles.
+- [ ] **T3.2** Merge image blocks into the ordered stream from Phase 2 by `y0`
+  position (top-to-bottom, reading order).
 - [ ] **T3.3** Emit `![TODO-alt-text](./images/filename.ext)` at the correct
   position in the markdown output.
 
+**Output artifact:** The same `convert-pdf-to-markdown.mjs` now also embeds image
+placeholders at their correct vertical positions within the markdown body.
+
 **🔍 Human validation (you):**
-- Open the output markdown and confirm each image appears between the same
-  two paragraphs it sits between in the PDF — this is the step most likely to
-  drift silently if block ordering has an edge case.
+- Open the output markdown and confirm each image appears between the same two
+  paragraphs it sits between in the PDF — this step is most likely to drift
+  silently if block ordering has an edge case.
 - Spot-check the saved image files themselves (correct format, not corrupted,
   reasonable file size).
 
 ### Phase 4 — Inline bold/italic formatting
-- [ ] **T4.1** Detect bold/italic runs within a line (not just whole-line
-  styling) using the signal confirmed in Phase 1.
-- [ ] **T4.2** Wrap detected runs in `**bold**` / `_italic_`, preserving
-  correct span boundaries (e.g., only "Example prompt:" bold, rest plain).
+
+- [ ] **T4.1** Detect bold/italic runs within a line using the signal confirmed in
+  Phase 1 (font-name substring or flags bitmask). Track span boundaries rather
+  than treating the whole line as one style.
+- [ ] **T4.2** Wrap detected runs in `**bold**` / `_italic_`, preserving correct
+  span boundaries (e.g., only "Example prompt:" bold, rest plain).
+
+**Output artifact:** `convert-pdf-to-markdown.mjs` now produces markdown with inline
+bold/italic formatting on partially-styled lines.
 
 **🔍 Human validation (you):**
-- Check the "Example prompt:" line and any other partially-bold lines in the
-  sample — confirm only the intended substring is wrapped, not the whole
-  paragraph.
+- Check the "Example prompt:" line and any other partially-bold lines in the sample —
+  confirm only the intended substring is wrapped, not the whole paragraph.
 
-### Phase 5 — Frontmatter templating
-- [ ] **T5.1** Derive `title` from the detected title block(s).
-- [ ] **T5.2** Derive a default `slug` from the filename or slugified title.
-- [ ] **T5.3** Set `coverImage` to the first extracted image if it matches a
+### Phase 5 — Frontmatter templating (converter side)
+
+The converter writes frontmatter that accepts `slug` and `date` from CLI arguments.
+These are **not** derived from the PDF content — they come from the outer pipeline
+(`import-articles.mjs`). This preserves the existing workflow where metadata is
+authored separately from the source document (slug from filename, date = today).
+
+- [ ] **T5.1** Derive `title` frontmatter value from the detected Title block(s)
+  (consecutive top-of-page, large-font lines).
+- [ ] **T5.2** Write `slug` to frontmatter from `--slug` CLI arg. If not provided,
+  default to `"TODO"` (for backward compatibility only).
+- [ ] **T5.3** Write `date` to frontmatter from `--date` CLI arg. If not provided,
+  default to `"TODO"` (for backward compatibility only).
+- [ ] **T5.4** Set `coverImage` to the first extracted image if it matches a
   banner-like position/size heuristic, else leave as `TODO`.
-- [ ] **T5.4** Emit `date` and `excerpt` as explicit `TODO` placeholders —
-  do not attempt to generate these.
+- [ ] **T5.5** Write `excerpt` as an explicit `TODO` placeholder — do not attempt
+  to generate this.
+
+**Output artifact:** `convert-pdf-to-markdown.mjs` now writes a complete `Article.md`
+file with YAML frontmatter (title + slug/date from args + TODO placeholders) followed
+by the full markdown body with images and inline formatting.
 
 **🔍 Human validation (you):**
-- Fill in `date` and `excerpt` yourself, and correct `slug`/`title` if the
-  auto-derived values aren't what you'd choose. This is expected manual work,
-  not a bug.
+- Verify that when run through `import-articles.mjs`, the generated Article.md
+  contains correct `slug` and `date` values passed from the outer pipeline.
+- Fill in `excerpt` yourself; correct `title` if the auto-derived value isn't
+  what you'd choose. This is expected manual work, not a bug.
 
-### Phase 6 (optional) — "Tip N:" heading rule
-Only build this if you've confirmed (per Section 3) that it's a standing
-convention across your articles, not a one-off:
+### Phase 6 (optional) — "Tip N:" heading rewriter
+
+Only build this if you confirm it's a standing convention across your articles,
+not a one-off pattern. See Section 3 for guidance.
+
 - [ ] **T6.1** Detect numbered heading-sized blocks matching `^\d+\.\s+(.+)`.
-- [ ] **T6.2** Rewrite as `## Tip {n}: {rest}`, with Step 6's dash→em-dash
-  normalization already applied to `{rest}`.
+- [ ] **T6.2** Rewrite as `## Tip {n}: {rest}`, with the em-dash normalization
+  from T2.3 already applied to `{rest}`.
+
+**Output artifact:** The same script now optionally rewrites "1. My heading" → "## Tip 1: My heading".
 
 **🔍 Human validation (you):**
-- Run against a second, different article's PDF (not just this sample) before
-  trusting this rule — a rewrite rule tuned to one article's wording is the
-  most likely thing here to misfire on the next one.
+- Run against a second, different article's PDF (not just the sample) before
+  trusting this rule — a rewrite rule tuned to one article's wording is the most
+  likely thing here to misfire on the next one.
+
+### Phase 7 — Integration with import pipeline
+
+Wire the new converter into the existing batch orchestrator and verify end-to-end.
+**`import-articles.mjs` must not be modified except to update any argument changes.**
+All its responsibilities (directory looping, slug generation from filename, date
+setting, skip-already-imported check, summary stats) remain **preserved as-is**.
+
+- [ ] **T7.1** Ensure `import-articles.mjs` calls the updated
+  `convert-pdf-to-markdown.mjs` with the full CLI contract:
+  `--input`, `--output`, `--slug`, `--date`, `--extract-images`, `--skip-prompts`.
+  No changes to slug generation, date setting, skip logic, or directory management.
+- [ ] **T7.2** Verify that an article processed through `npm run importArticles` produces
+  a correctly structured Article.md in `public/articles/<slug>/` with:
+  - Valid YAML frontmatter (title filled from PDF, slug/date correct from args,
+    excerpt/coverImage as TODO)
+  - Correct headings, lists, paragraphs in the body
+  - Image placeholders at correct positions
+  - Inline bold/italic where applicable
+- [ ] **T7.3** Verify idempotency: re-running `npm run importArticles` on already-imported
+  articles skips them (existing `Article.md` existence check still works).
+- [ ] **T7.4** Verify the `generate-articles-manifest.mjs` script still picks up new
+  articles correctly after a full import + build cycle.
+
+**Output artifact:** End-to-end working pipeline: drop a PDF in `rawArticles/`, run
+`npm run importArticles`, review and edit the generated Article.md, then `npm run build`.
+
+---
+
+## 6. Integration with existing import pipeline
+
+The converter script (`convert-pdf-to-markdown.mjs`) is designed to replace only
+the PDF→Markdown **conversion** logic (Steps 1–7 in Section 2). The outer batch
+orchestrator (`import-articles.mjs`) and its responsibilities are preserved
+entirely. Here is the boundary:
+
+| Responsibility | Lives in | Notes |
+|---|---|---|
+| Loop over all PDFs in `rawArticles/` | `import-articles.mjs` | **Preserved as-is** |
+| Generate `slug` from filename (slugify) | `import-articles.mjs` | **Preserved as-is** — do NOT move into converter |
+| Set `date` to today | `import-articles.mjs` | **Preserved as-is** |
+| Skip already-imported articles (`Article.md` exists) | `import-articles.mjs` | **Preserved as-is** |
+| Spawn conversion per PDF with correct args | `import-articles.mjs` | **Preserved as-is** |
+| Summary stats (imported/skipped/errors) | `import-articles.mjs` | **Preserved as-is** |
+| Create `rawArticles/` / `public/articles/` dirs | `import-articles.mjs` | **Preserved as-is** |
+| Single PDF → Markdown conversion | `convert-pdf-to-markdown.mjs` | **New** — replaces old inline logic |
+| Diagnostics/debug span dump | `convert-pdf-to-markdown.mjs --debug` | **New** — Phase 1 |
+| Block classification & markdown rendering | `convert-pdf-to-markdown.mjs` | **New** — Phases 2–4 |
+| Image extraction + placement | `convert-pdf-to-markdown.mjs` | **New** — Phase 3 |
+| Frontmatter (partial: title, coverImage) | `convert-pdf-to-markdown.mjs` | Receives slug/date from args |
+
+### CLI contract for `convert-pdf-to-markdown.mjs`
+
+```bash
+node convert-pdf-to-markdown.mjs \
+  --input /path/to/article.pdf \
+  --output /path/to/article-folder \
+  --slug my-article-slug \
+  --date 2026-09-22 \
+  --extract-images \
+  --skip-prompts
+```
+
+| Flag | Required | Purpose | Default if omitted |
+|---|---|---|---|
+| `--input` | Yes | Path to the PDF file to convert | (error) |
+| `--output` | Yes | Destination directory for Article.md + images | (error) |
+| `--slug` | No | Frontmatter slug value | `"TODO"` |
+| `--date` | No | Frontmatter date value | `"TODO"` |
+| `--extract-images` | No | Extract and save embedded images to `images/` subfolder | no extraction |
+| `--skip-prompts` | No | Non-interactive mode (required for batch) | interactive mode |
+| `--debug` | No | Print diagnostics span dump to stdout; exit after | off |
+
+The `--debug` flag is a permanent feature: it exits early after printing the
+span diagnostics from Phase 1, allowing future recalibration if font-size
+buckets change in new source documents.
 
 ---
 
