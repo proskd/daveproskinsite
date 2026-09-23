@@ -406,4 +406,6 @@ record of which thresholds/signals were confirmed and when.)*
 
 | Date | Decision | Notes |
 |---|---|---|
-| | | |
+| 2026-09-22 | All headings with font size >= 14 are treated as `##` level. | Confirmed against sample PDF: title=30, subtitle=20, section headers=14, body/list items=11. The threshold cleanly separates all content levels. |
+| 2026-09-22 | Bold is detected via font name string matching: `-Bold` or `+Bold` suffix in `font.name`. | Also checked `font.weight === "bold"` as a secondary signal, but the primary rule will be the font name heuristic since it's what the model PDF consistently uses. |
+| 2026-09-22 | List items are detected by leading character pattern: lines starting with `-`, `•`, or `\d+\.` (numbered). Excluded if the line is already classified as a section header (size >= 14). | Bullet and numbered list content use the same font as body text in the model PDF, so classification relies entirely on these content-based heuristics. |

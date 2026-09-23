@@ -9,15 +9,14 @@ import { resolve, dirname, basename, extname, join } from 'path'
 import { createInterface } from 'readline'
 
 function parseArgs(argv) {
-  const flags = { verbose: false, extractImages: false, applyHeuristics: true, skipPrompts: false }
+  const flags = { verbose: false, extractImages: false, skipPrompts: false }
   let positional = []
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg.startsWith('--')) {
       const key = arg.slice(2)
       const next = argv[i + 1]
-      if (key === 'no-heuristics') { flags.applyHeuristics = false }
-      else if (key === 'skip-prompts' || key === 'batch-mode') { flags.skipPrompts = true }
+      if (key === 'skip-prompts' || key === 'batch-mode') { flags.skipPrompts = true }
       else if (['verbose', 'extract-images'].includes(key)) {
         flags[key.replace('-', '_')] = next && !next.startsWith('--')
         if (flags[key.replace('-', '_')]) i++
@@ -64,83 +63,6 @@ async function interactiveFrontmatter(title, slug, date, excerpt) {
 function slugifyTitle(title) {
   return title.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ')
     .replace(/\s+/g, '-').replace(/^-|-$/g, '')
-}
-
-function detectHeading(line, index, lines) {
-  const trimmed = line.trim()
-  if (!trimmed) return 0
-  if (/^[A-Z0-9][A-Z0-9\s]{5,74}$/.test(trimmed)) {
-    const nl = lines[index + 1] ? lines[index + 1].trim() : ''
-    if ((nl.length > 0 && /^[a-z]/.test(nl)) || !nl) return 1
-  }
-  if (/^(\d+(\.\d+)*)[\.\s]+.+[.:]\s*$/.test(trimmed)) return 2
-  if (trimmed.length > 3 && trimmed.length < 80 && !/^[-*•\d]\s/.test(trimmed)) {
-    const nl = lines[index + 1] ? lines[index + 1].trim() : ''
-    const anl = lines[index + 2] ? lines[index + 2].trim() : ''
-    if (nl === '' && anl.length > 0) return 3
-  }
-  if (/^[A-Z][A-Z\s]{2,50}:?\s*$/.test(trimmed) && trimmed.split(/\s/).length <= 6) return 2
-  if (/^\d+\.\s+[A-Z][a-zA-Z]{2,}$/.test(trimmed)) return 2
-  if (trimmed.length < 60 && !trimmed.endsWith('.') && !trimmed.startsWith('-')) {
-    const words = trimmed.split(/\s+/)
-    if (words.length >= 2 && words.length <= 8) {
-      const cappedWords = words.filter((w) => /^[A-Z]/.test(w)).length
-      if (cappedWords / words.length > 0.6) return 3
-    }
-  }
-  return 0
-}
-
-function detectListItem(line) {
-  const trimmed = line.trimStart()
-  if (/^[-*•]\s+/.test(trimmed)) {
-    const spaces = line.length - trimmed.length
-    return { text: trimmed.replace(/^[-*•]\s+/, ''), indent: Math.round(spaces / 2), type: 'ul' }
-  }
-  return null
-}
-
-function detectOrderedListItem(line) {
-  const trimmed = line.trimStart()
-  const match = /^(\d+)\.\s+/.exec(trimmed)
-  if (match) return { number: parseInt(match[1], 10), text: trimmed.slice(match[0].length) }
-  return null
-}
-
-function applyHeuristics(rawText) {
-  const lines = rawText.split('\n')
-  const mdLines = []
-  let inList = null
-
-  function flushList() {
-    if (!inList || !inList.items.length) return
-    for (const item of inList.items) {
-      const prefix = inList.type === 'ol' ? '1.' : '-'
-      mdLines.push(' '.repeat(inList.minIndent * 2) + prefix + ' ' + item)
-    }
-    mdLines.push('')
-    inList = null
-  }
-
-  function flushParagraph(buf) { if (buf.length) { mdLines.push(...buf); mdLines.push('') } }
-  let paraBuf = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    const trimmed = line.trim()
-    if (!trimmed) { flushList(); flushParagraph(paraBuf); paraBuf = []; continue }
-    if (/^>\s?/.test(trimmed)) { flushList(); flushParagraph(paraBuf); mdLines.push('> ' + trimmed.replace(/^>\s?/, '')); continue }
-    const hl = detectHeading(trimmed, i, lines)
-    if (hl > 0) { flushList(); flushParagraph(paraBuf); mdLines.push('#'.repeat(hl) + ' ' + trimmed); mdLines.push(''); continue }
-    const ul = detectListItem(line)
-    if (ul) { flushParagraph(paraBuf); if (!inList || inList.type !== 'ul' || inList.minIndent > ul.indent) { if (inList) flushList(); inList = { type: 'ul', items: [], minIndent: ul.indent } }; inList.items.push(ul.text); continue }
-    const ol = detectOrderedListItem(line)
-    if (ol) { flushParagraph(paraBuf); if (!inList || inList.type !== 'ol') { if (inList) flushList() }; if (inList && inList.type === 'ol') { inList.items.push(ol.text) } else { inList = { type: 'ol', items: [ol.text], minIndent: 0 } }; continue }
-    flushList(); paraBuf.push(trimmed)
-  }
-
-  flushParagraph(paraBuf); flushList()
-  return mdLines.join('\n')
 }
 
 // --- Structured Text Extraction (MuPDF) ---
@@ -336,8 +258,11 @@ async function convert(inputPath, oc) {
     fmTitle = answers.title; fmDate = answers.date; fmExcerpt = answers.excerpt; fmSlug = answers.slug; coverImage = answers.coverImage
   }
 
+  // Page-break markers are stripped since we removed heuristic processing.
   let bodyText = rawText
-  if (oc.applyHeuristics) { process.stdout.write('\x1b[90mApplying style-detection heuristics...\x1b[0m\n'); bodyText = applyHeuristics(rawText) }
+    .replace(/--- Page \d+ of \d+ ---\n*/g, '')
+    .replace(/^-+\s+\d+\sof\s+\d+\s+-+\s*\n*/gm, '')  // pdf-parse page dividers (Bug #3)
+    .trim()
 
   let extractedImages = []
   if (oc.extract_images) {
@@ -380,7 +305,6 @@ async function main() {
     console.error('  --excerpt        Short description')
     console.error('  --slug           URL slug')
     console.error('  --extract-images Extract embedded PDF images (optional)')
-    console.error('  --no-heuristics  Skip style detection; raw text only')
     console.error('  --skip-prompts   Skip interactive prompts (use defaults)')
     console.error('  --verbose        Print extra diagnostics')
     console.error('')
@@ -393,7 +317,6 @@ async function main() {
     output: args.output || join(dirname(resolve(inputPath)), basename(inputPath, extname(inputPath)) + '.md'),
     title: args.title || undefined, date: args.date || undefined, excerpt: args.excerpt || undefined, slug: args.slug || undefined,
     verbose: args.verbose || false, extract_images: args.extract_images || false,
-    applyHeuristics: args.apply_heuristics !== false && args.applyHeuristics !== false,
     skip_prompts: args.skipPrompts || false,
   }
 
