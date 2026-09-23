@@ -143,6 +143,128 @@ function applyHeuristics(rawText) {
   return mdLines.join('\n')
 }
 
+// --- Structured Text Extraction (MuPDF) ---
+// Uses MuPDF structured text with Y-coordinate-aware block merging.
+// Body paragraphs are merged regardless of vertical gap size, since
+// MuPDF often outputs 12px/24px alternating gaps within a single paragraph.
+
+async function parseStructuredText(pdfBuffer, verbose) {
+  let mupdfMod;
+  try {
+    mupdfMod = await import('mupdf');
+  } catch (err) {
+    if (verbose) console.log('[extract] MuPDF not available, falling back to pdf-parse.');
+    return null; // signal: use fallback
+  }
+
+  const doc = new mupdfMod.PDFDocument(pdfBuffer);
+  const totalPages = doc.countPages();
+  const allBlocks = [];
+
+  for (let pg = 0; pg < totalPages; pg++) {
+    const page = doc.loadPage(pg);
+    let json;
+    try {
+      const jsonStr = page.toStructuredText().asJSON(1.0);
+      json = JSON.parse(jsonStr);
+    } catch {
+      page.destroy();
+      continue; // skip unreadable pages
+    }
+    if (!json.blocks || !Array.isArray(json.blocks)) {
+      page.destroy();
+      continue;
+    }
+
+    for (const blk of json.blocks) {
+      if (!blk.lines || !Array.isArray(blk.lines)) continue;
+
+      // Collect ALL lines including empty ones as paragraph separators
+      const allEntries = [];
+      for (const line of blk.lines) {
+        const text = String(line.text ?? "").trimEnd();
+        // MuPDF structured text uses `y` not `y0`; fallback to bbox.y
+        const y0 = typeof line.y === "number" ? line.y : (line.bbox?.y ?? 0);
+        const font = line.font ?? {};
+
+        if (!text) {
+          allEntries.push({ isSeparator: true, y0 });
+        } else {
+          const fontName = String(font.name ?? "");
+          const fontSize = Number(font.size ?? 11);
+          const isBold = font.weight === "bold" || (fontName.includes("-Bold") || fontName.includes("+Bold"));
+          const isItalic = font.style === "italic" || (fontName.includes("Italic") || fontName.includes("+Italic"));
+          allEntries.push({ isSeparator: false, y0, text, fontName, fontSize, isBold, isItalic });
+        }
+      }
+
+      // Merge consecutive same-style lines into blocks.
+      // KEY FIX: Ignore Y-gap thresholds for body text. Paragraph breaks come from:
+      //   1. Empty lines (U+2028) → separator
+      //   2. Font style changes (bold, large size) → new block
+      // Same-style contiguous lines are always merged regardless of vertical gap.
+      let curBlock = null;
+      for (const entry of allEntries) {
+
+        if (entry.isSeparator) {
+          if (curBlock && curBlock.lines.trim()) {
+            allBlocks.push(curBlock);
+          }
+          curBlock = null;
+          continue;
+        }
+
+        // Check style compatibility (font size, bold, italic)
+        const prevFontSize = curBlock?.fontSize ?? entry.fontSize;
+        const isSameStyle = Math.abs(entry.fontSize - prevFontSize) <= 1 &&
+                            (entry.isBold === curBlock?.isBold || !curBlock) &&
+                            (entry.isItalic === curBlock?.isItalic || !curBlock);
+
+        // Bullet points: flush current block, start new one with this bullet
+        if (/^[\u2022-\u25AA\u25D8-\u25DB]/.test(entry.text) &&
+            entry.isBold === curBlock?.isBold && entry.fontSize === curBlock?.fontSize) {
+          allBlocks.push(curBlock);
+          curBlock = null;
+        }
+
+        // New block (no current, or style mismatch)
+        if (!curBlock || !isSameStyle) {
+          curBlock = {
+            page: pg, y0: entry.y0, lines: entry.text,
+            fontName: entry.fontName, fontSize: entry.fontSize,
+            isBold: entry.isBold, isItalic: entry.isItalic
+          };
+        } else {
+          // Same style, not a bullet: merge into current block (ignore Y-gap)
+          curBlock.lines += " " + entry.text;
+        }
+      }
+
+      if (curBlock && curBlock.lines.trim()) {
+        allBlocks.push(curBlock);
+      }
+    }
+
+    page.destroy();
+  }
+
+  doc.destroy();
+
+  // Convert blocks to plain text joined by newlines, with page-break markers between pages
+  let result = "";
+  let lastPg = -1;
+  for (let i = 0; i < allBlocks.length; i++) {
+    const b = allBlocks[i];
+    if (b.page !== lastPg) {
+      result += `\n--- Page ${b.page + 1} of ${totalPages} ---\n\n`;
+      lastPg = b.page;
+    }
+    result += b.lines + "\n";
+  }
+
+  return result || null; // return null if no blocks extracted → fallback to pdf-parse
+}
+
 async function extractImages(pdfBuffer, articleDir) {
   let PDFParseClass
   try { const mod = await import('pdf-parse'); PDFParseClass = mod.PDFParse || mod.default } catch { return [] }
@@ -182,18 +304,26 @@ async function convert(inputPath, oc) {
   process.stdout.write('\x1b[90mReading PDF: ' + inputResolved + '\x1b[0m\n')
   const pdfBuffer = await readFile(inputResolved)
 
-  let rawText, totalPages
-  try {
-    const mod = await import('pdf-parse')
-    const PDFParseClass = mod.PDFParse || mod.default
-    const pdfObj = new PDFParseClass({ data: pdfBuffer })
-    const textResult = await pdfObj.getText()
-    rawText = textResult.text; totalPages = textResult.total
-  } catch (err) { console.error('Error extracting text from PDF: ' + err.message); process.exit(1) }
+  let rawText = '', totalPages = 0
+
+  // Try MuPDF structured text first (better paragraph reconstruction)
+  if (oc.verbose) process.stdout.write('\x1b[90mAttempting structured text extraction...\x1b[0m\n')
+  rawText = await parseStructuredText(pdfBuffer, oc.verbose)
+  if (!rawText) {
+    // Fall back to plain pdf-parse text extraction
+    if (oc.verbose) process.stdout.write('\x1b[90mFalling back to basic text extraction...\x1b[0m\n')
+    try {
+      const mod = await import('pdf-parse')
+      const PDFParseClass = mod.PDFParse || mod.default
+      const pdfObj = new PDFParseClass({ data: pdfBuffer })
+      const textResult = await pdfObj.getText()
+      rawText = textResult.text; totalPages = textResult.total
+    } catch (err) { console.error('Error extracting text from PDF: ' + err.message); process.exit(1) }
+  }
 
   if (!rawText || !rawText.trim()) { console.error('Error: No text content found.'); process.exit(1) }
 
-  if (oc.verbose) console.log('\x1b[90mExtracted ' + rawText.length + ' chars across ' + totalPages + ' page(s).\x1b[0m')
+  totalPages = totalPages || (rawText.match(/-- \d+ of \d+ --/g) || []).length + 1
   await mkdir(articleDir, { recursive: true })
 
   const fallbackTitle = basename(inputResolved, extname(inputResolved)).replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -264,6 +394,7 @@ async function main() {
     title: args.title || undefined, date: args.date || undefined, excerpt: args.excerpt || undefined, slug: args.slug || undefined,
     verbose: args.verbose || false, extract_images: args.extract_images || false,
     applyHeuristics: args.apply_heuristics !== false && args.applyHeuristics !== false,
+    skip_prompts: args.skipPrompts || false,
   }
 
   try { await convert(inputPath, oc) }
