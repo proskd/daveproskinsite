@@ -13,6 +13,8 @@
   "dependencies": {
     "buffer": "^6.0.3",
     "gray-matter": "^4.0.3",
+    "mammoth": "^1.12.3",
+    "mupdf": "^1.28.1",
     "pdf-parse": "^2.4.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
