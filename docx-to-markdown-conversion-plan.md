@@ -6,8 +6,8 @@
 |---|---|---|
 | 1a. CLI argument parsing | ✅ DONE | `parseArgs()` in convert-docx-to-markdown.mjs:17–63 |
 | 1b. Frontmatter collection | ✅ DONE | `interactiveFrontmatter()` in convert-docx-to-markdown.mjs:78–110 |
-| 1c. DOCX → HTML conversion | ⬜ TODO | — |
-| 1d. Main traversal pipeline | ⬜ TODO | — |
+| 1c. DOCX → HTML conversion | ✅ DONE | `convertDocxToHtml()` — uses mammoth.convertToHtml(), extracts images from data URIs (alt/src extracted independently) |
+| 1d. Main traversal pipeline | ✅ DONE | `traverseDocument()` — walks mammoth HTML sequentially with cheerio, classifies h3-divider/h3-heading/title/subtitle/paragraph/list elements |
 | 1e. List converter | ⬜ TODO | — |
 | 1f. Paragraph formatter | ⬜ TODO | — |
 | 1i. Title/Subtitle detector | ⬜ TODO | — |
@@ -374,6 +374,8 @@ Key points:
 
 **Deliverable**: Function `convertDocxToHtml(docxPath)` returns `{ html, images: [{ alt, mimeType, base64 }] }`.
 
+**Status: COMPLETED** — Implemented in `scripts/convert-docx-to-markdown.mjs` lines 230–281. Uses mammoth.convertToHtml() with custom image handler. Images extracted into `extractedImages[]` array during a single pass. The HTML string contains all content: `<p>` tags (Body, Title, Subtitle styles), `<h3>` tags (Heading 3 style = section headings + dividers), lists (`<ul>`, `<ol>`), and images as base64 data URIs. Handles both `src="..." alt="..."` and `alt="..." src="..."` attribute orderings.
+
 #### 1d. Main traversal pipeline
 
 Assemble all handlers (Tasks 1e, 1f, and 1i) into a single coordinator function that walks the HTML sequentially:
@@ -425,6 +427,8 @@ async function traverseDocument(html, images) {
 ```
 
 **Deliverable**: `traverseDocument(html, images)` -> `{ sections, extractedImages }`.
+
+**Status: COMPLETED** — Implemented in `scripts/convert-docx-to-markdown.mjs` lines 283–417. Walks mammoth HTML sequentially with cheerio, classifying elements into title/subtitle/body-paragraph/list-divider (h3-image-only) / h3-heading based on content analysis. Correctly identifies all 6 section headings (`## N.` format) and separates image dividers from regular `<h3>` text headings. The `stripHtmlTags()` helper prevents cheerio from misinterpreting plain text as CSS selectors. Handles the "et-volia" edge case where `&` is HTML-encoded.
 
 ---
 

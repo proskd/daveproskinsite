@@ -11,6 +11,7 @@ import { existsSync } from 'fs'
 import { resolve, dirname, basename, extname, join } from 'path'
 import { createInterface } from 'readline'
 import mammoth from 'mammoth'
+import { load } from 'cheerio'
 
 // ─── Task 1a: CLI argument parsing ────────────────────────────────────────────
 
@@ -109,333 +110,172 @@ async function interactiveFrontmatter(title, slug, date, excerpt) {
   }
 }
 
-// ─── Task 1c: DOCX content extraction ─────────────────────────────────────────
+// ─── Task 1c: DOCX → HTML conversion ──────────────────────────────────────────
 
 /**
- * Read a .docx file and produce both markdown content and extracted images.
- * Images are extracted from data URIs embedded in the markdown output.
- * Returns { markdown: string, messages: Array, images: Array<{filename, buffer}> }.
+ * Read a .docx file and produce an HTML string with embedded images as data URIs.
+ * Uses mammoth.convertToHtml() which correctly produces <h3> tags for all Heading 3 elements.
+ * No styleMap is needed — mammoth auto-produces all h3 headings correctly.
+ *
+ * Returns { html: string, messages: Array, images: Array<{filename, buffer, mimeType, alt}> }.
  */
-async function extractDocxContent(inputPath) {
+async function convertDocxToHtml(inputPath) {
   const docxBuffer = await readFile(inputPath)
 
-  // Pass 1: Get the markdown text (contains data URI image placeholders like
-  // ![f-t-tbl-banner.png](data:image/png;base64,...))
-  const mdResult = await mammoth.convertToMarkdown({ buffer: docxBuffer })
+  // Convert DOCX to HTML — mammoth produces proper <h3> for Heading 3 style elements
+  const result = await mammoth.convertToHtml({ buffer: docxBuffer })
 
-  // Pass 2: Extract embedded images from data URIs in the markdown output
+  // Extract embedded images from data URIs in the HTML img tags.
+  // Mammoth produces <img alt="..." src="data:image/...;base64,..."> — attributes may be in any order,
+  // so we extract src and alt independently using flexible patterns.
   const extractedImages = []
-  const uriPattern = /!\[([^\]]*)\]\(data:image\/([^;]+);base64,([A-Za-z0-9+/=]+?)\)/g
+  const srcPattern = /src="data:image\/([^;"]+);base64,([A-Za-z0-9+/=]+)"/g
   let match
 
-  while ((match = uriPattern.exec(mdResult.value)) !== null) {
-    const alt = match[1]           // e.g. "f-t-tbl-banner.png"
-    const ext = match[2]           // e.g. "png", "jpeg", "jpg"
-    const b64 = match[3]           // base64-encoded image bytes
+  while ((match = srcPattern.exec(result.value)) !== null) {
+    const ext = match[1] === 'jpeg' ? 'jpg' : match[1]
+    const b64 = match[2]
 
-    // Build filename: use alt text as-is, or append extension if needed
-    let filename = alt
+    // Find the alt attribute for this image (alt comes before src in mammoth output)
+    const beforeSrc = result.value.substring(
+      Math.max(0, result.value.indexOf(match[0]) - 200),
+      result.value.indexOf(match[0])
+    )
+    const altMatch = beforeSrc.match(/alt="([^"]*)"/)
+    const alt = altMatch ? altMatch[1] : ''
+
+    // Build filename: use alt text as-is (mammoth often provides original filenames),
+    // or append extension if needed
+    let filename = alt || `image_${extractedImages.length}.${ext}`
     if (!filename.includes('.')) {
-      filename = filename + '.' + (ext === 'jpeg' ? 'jpg' : ext)
+      filename = filename + '.' + ext
     }
 
     const imgBuffer = Buffer.from(b64, 'base64')
-    extractedImages.push({ filename, buffer: imgBuffer })
+    extractedImages.push({ filename, buffer: imgBuffer, mimeType: `image/${ext}`, alt })
   }
 
-  if (mdResult.messages.length > 0) {
-    console.warn('Mammoth messages:', mdResult.messages)
+  if (result.messages.length > 0) {
+    console.warn('Mammoth messages:', result.messages)
   }
 
-  return { markdown: mdResult.value, messages: mdResult.messages, images: extractedImages }
+  return { html: result.value, messages: result.messages, images: extractedImages }
 }
 
-// ─── Task 1d: Document structure analyzer / heading detector ──────────────
+// ─── Task 1d: Main traversal pipeline ──────────────────────────────────────
 
 /**
- * Split raw markdown into block-level units separated by blank lines.
+ * Traverse the HTML output from mammoth.convertToHtml() and classify each element.
+ * Produces an ordered list of section objects for downstream markdown generation.
+ *
+ * Classification rules (from plan):
+ *   - <h3> containing ONLY an <img> → image divider (not a heading)
+ *   - <h3> containing text → ## heading output
+ *   - First <p> with banner image → Title
+ *   - Second short <p> → Subtitle
+ *   - Everything else (<p>, <ul>, <ol>) → body content
+ *
+ * Returns { sections: Array, extractedImages: Array }.
  */
-function splitIntoBlocks(rawText) {
-  const blocks = []
-  let current = []
-  for (const line of rawText.split('\n')) {
-    if (line.trim() === '') {
-      if (current.length > 0) {
-        blocks.push(current)
-        current = []
-      }
-    } else {
-      current.push(line)
+function traverseDocument(html, images) {
+  // Parse HTML using cheerio (Node.js-compatible DOM parser) — imported above
+  const $ = load(html)
+
+  // Deduplicate extracted images (by lowercase filename)
+  const seen = {}
+  const deduped = []
+  for (const img of images) {
+    const key = img.filename.toLowerCase()
+    if (!seen[key]) {
+      seen[key] = true
+      deduped.push(img)
     }
   }
-  if (current.length > 0) blocks.push(current)
-  return blocks
-}
 
-/**
- * Build a filename lookup map from extracted images.
- */
-function buildImageMap(extractedImages) {
-  const map = {}
-  for (const img of extractedImages) {
-    map[img.filename] = img
-    const dotIndex = img.filename.lastIndexOf('.')
-    if (dotIndex > 0) {
-      map[img.filename.substring(0, dotIndex)] = img
-    }
-  }
-  return map
-}
-
-/**
- * Replace data URIs in markdown with file references.
- */
-function replaceDataUris(markdown, imageMap) {
-  let result = markdown
-  const dataUriRe = /!\[([^\]]*)\]\(data:image\/[a-z]+;base64,([A-Za-z0-9+/=]+?)\)/g
-  let match
-
-  while ((match = dataUriRe.exec(markdown)) !== null) {
-    const alt = match[1]
-    let img = imageMap[alt] || imageMap[alt.split('.')[0]]
-    if (!img) {
-      for (const key of Object.keys(imageMap)) {
-        if (alt.toLowerCase().includes(key.toLowerCase())) {
-          img = imageMap[key]
-          break
-        }
-      }
-    }
-    const replacementFile = img ? img.filename : 'PLACEHOLDER'
-    result = result.replace(match[0], `![${alt}](./${replacementFile})`)
+  // Helper: <h3> containing ONLY an <img> -> image divider (not a heading)
+  function isH3Divider($el) {
+    return $el.prop('tagName') === 'H3' && $el.find('img').length > 0 && !$el.text().trim()
   }
 
-  return result
-}
-
-/**
- * Unescape mammoth's overzealous Markdown escaping.
- * Mammoth escapes characters like '.', '(', ')', '-' that don't need escaping.
- */
-function unescapeMammoth(markdown) {
-  // Remove mammoth overzealous backslash escaping for common chars
-  let result = markdown.replace(/\\([.!()\-])/g, '$1')
-
-  // Ensure blank lines around h3 headings so blocks split correctly
-  result = result.replace(/([^#\s])\n(#)/g, '$1\n\n$2')
-  result = result.replace(/(#)\n([^#\s])/g, '$1\n\n$2')
-
-  return result
-}
-
-/**
- * Split lines that contain both paragraph text and image references.
- * Mammoth sometimes concatenates: "text...![img](path)" without any separator.
- * This inserts a newline so they become separate blocks for proper classification.
- */
-function splitInlineImages(markdown) {
-  // Insert newline before ![ patterns that immediately follow a non-whitespace char
-  return markdown.replace(/(\S)(!\[)/g, '$1\n$2')
-}
-
-
-/**
- * Classify a block based on heuristics.
- */
-function classifyBlock(blockLines, isFirstBlock) {
-  const firstLine = blockLines[0].trim()
-  const allText = blockLines.join('\n')
-
-  // 1. Banner/title area: first block contains banner image + text
-  if (isFirstBlock && /!\[.*banner/i.test(allText)) {
-    return 'banner'
+  // Helper: <h3> with text and no <img> -> heading
+  function isH3Heading($el) {
+    return $el.prop('tagName') === 'H3' && $el.find('img').length === 0 && $el.text().trim().length > 0
   }
 
-  // 2. Setup label: standalone line that is just "Setup"
-  if (blockLines.length === 1 && /^setup$/i.test(firstLine)) {
-    return 'setup'
+  // Helper: strip all HTML tags, leaving plain text (wrap in div to avoid selector parsing)
+  function stripHtmlTags(htmlString) {
+    return $('<div>').html(htmlString).text() || ''
   }
 
-  // 3. Tip heading from h3: only if it looks like a numbered tip (has "Tip" keyword)
-  const h3Match = firstLine.match(/^###\s+(?:(?:Tip\s+)?(\d+)[.:]\s+)?(.+)$/i)
-  if (h3Match && /tip/i.test(firstLine)) {
-    return 'tip-heading'
+  // Helper: <p> containing an <img> (for title detection)
+  function hasImage($el) {
+    return $el.prop('tagName') === 'P' && $el.find('img').length > 0
   }
 
-  // 3b. Detect h3 section headings that need conversion: "### Setup" or similar
-  const h3SectionRe = /^###\s+(.+)$/
-  const h3SectionMatch = firstLine.match(h3SectionRe)
-  // Skip if this is just an image wrapped in heading style (e.g., ### ![section1.jpg])
-  const isImageOnlyBlock = blockLines.length === 1 && /!?\[/.test(blockLines[0])
-  if (h3SectionMatch && blockLines.length === 1 && !isImageOnlyBlock) {
-    return 'h3-section'
+  // Helper: extract alt text from first <img> inside a <p>
+  function getImgAlt($el) {
+    const img = $el.find('img').first()
+    return img.attr('alt') || ''
   }
 
-  // 4. Numbered tip from ordered list: "- *Tip N: ...*" or similar
-  const tipListRe = /^[-*\d.]\s+\*?\s*(?:tip\s+\d+)\s*:.*\*/i
-  if (tipListRe.test(firstLine)) {
-    return 'tip-list-item'
+  // Helper: <p> short enough to be subtitle (under ~50 chars text)
+  function isShortText(htmlContent) {
+    const text = stripHtmlTags(htmlContent).trim()
+    return text.length > 0 && text.length < 50
   }
 
-  // 5. Section divider image: block that is ONLY a single image reference
-  // May be preceded by heading marker (###) when mammoth wraps images in heading styles
-  const stripHeading = line => line.replace(/^#{1,6}\s+/, '')
-  const strippedLines = blockLines.map(stripHeading)
-  const strippedFirst = strippedLines[0] || ''
-  const nonImgStrippedLines = strippedLines.filter(l => !/^\s*!\[/.test(l))
-  if (blockLines.length === 1 && /!\[.*\]\(/.test(strippedFirst) && nonImgStrippedLines.length === 0) {
-    return 'section-divider-image'
-  }
-
-  // 6. Default: paragraph or list content
-  if (/^[\s]*[-*+]\s/.test(firstLine)) return 'list-item'
-  if (/^[\s]*\d+\.\s/.test(firstLine)) return 'ordered-list-item'
-  return 'paragraph'
-}
-
-/**
- * Extract tip number and title from a line.
- */
-function extractTipNumberAndTitle(text) {
-  // Strip heading markers first
-  let clean = text.replace(/^#{1,6}\s+/, '')
-  let m = clean.match(/^(?:(?:tip\s+)?\d+[.:]\s*)(.+)$/i)
-  if (!m) return null
-  const title = m[1].trim().replace(/[.,;:!]+$/, '').trim()
-  const number = clean.match(/\d+/)?.[0]
-  return { number, title }
-}
-
-/**
- * Main analysis: processes raw markdown through all heuristics.
- */
-function analyzeDocumentStructure(contentResult, extractedImages) {
-  const rawMarkdown = contentResult.markdown
-  const imageMap = buildImageMap(extractedImages)
-  // Step 1: Replace data URIs with file references
-  let cleaned = replaceDataUris(rawMarkdown, imageMap)
-  // Step 2: Unescape mammoth's overzealous backslash escaping
-  cleaned = unescapeMammoth(cleaned)
-  // Step 3: Split inline image patterns from preceding text
-  cleaned = splitInlineImages(cleaned)
-  const blocks = splitIntoBlocks(cleaned)
-
-  const extractedImagesList = []
-  let coverImage
-  let titleText
-  let introLabelled = false
-
+  // Section builder
   const sections = []
   let currentSection = { items: [] }
+  let foundTitle = false
+  let foundSubtitle = false
 
-  function pushSection(heading) {
-    if (currentSection.items.length > 0 || heading) {
-      if (heading) {
-        sections.push({ ...currentSection, heading })
-      } else {
-        sections.push(currentSection)
-      }
+  function pushCurrent() {
+    if (currentSection.items.length > 0 || currentSection.heading) {
+      sections.push(currentSection)
       currentSection = { items: [] }
     }
   }
 
-  let blockIndex = 0
+  // Walk top-level children of <body> sequentially
+  $('body > *').each(function(_idx, el) {
+    const $el = $(el)
 
-  for (const blockLines of blocks) {
-    blockIndex++
-    const isFirst = blockIndex === 1
-    const classification = classifyBlock(blockLines, isFirst)
-
-    // Heuristic 1: Banner / title area
-    if (classification === 'banner') {
-      const imgMatch = blockLines.join('\n').match(/!\[([^\]]*)\]\(data:image/)
-      if (imgMatch) {
-        const alt = imgMatch[1]
-        const imgFile = imageMap[alt] || imageMap[alt.split('.')[0]]
-        coverImage = imgFile ? imgFile.filename : undefined
-
-        const afterImgMatch = blockLines.join('\n').replace(/!\[[^\]]*\]\([^)]*\)/, '')
-          .replace(/<[^>]+>/g, '').replace(/\s*<br\s*\/?>\s*/g, ' ').trim()
-        if (afterImgMatch) {
-          titleText = afterImgMatch.split('\n')[0].trim() || undefined
+    if (isH3Divider($el)) {
+      const alt = $el.find('img').first().attr('alt') || 'divider'
+      deduped.forEach((img) => {
+        if (img.alt.toLowerCase() === alt.toLowerCase() ||
+            img.filename.toLowerCase().includes(alt.toLowerCase().split('.')[0])) {
+          if (sections.length > 0) {
+            sections[sections.length - 1].items.push({ type: 'image', alt, filename: img.filename })
+          }
         }
-      }
-      continue
-    }
-
-    // Heuristic 2: "Setup" label
-    if (classification === 'setup') {
-      pushSection('Setup')
-      continue
-    }
-
-    // Heuristic 3: Tip heading from h3
-    if (classification === 'tip-heading') {
-      // If there's existing un-headed content, it's the introduction — label and save it first
-      if (!currentSection.heading && currentSection.items.length > 0 && !introLabelled) {
-        sections.push({ ...currentSection, heading: 'Introduction' })
-        introLabelled = true
-        currentSection = { items: [] }
-      }
-      const tipInfo = extractTipNumberAndTitle(blockLines[0])
-      if (tipInfo) {
-        pushSection(`Tip ${tipInfo.number}: ${tipInfo.title}`)
+      })
+    } else if (isH3Heading($el)) {
+      pushCurrent()
+      currentSection.heading = stripHtmlTags($el.html()).trim()
+    } else if ($el.prop('tagName') === 'P') {
+      if (!foundTitle && hasImage($el)) {
+        currentSection.items.push({ type: 'title', imageAlt: getImgAlt($el) })
+        foundTitle = true
+      } else if (!foundSubtitle && isShortText($el.html())) {
+        currentSection.items.push({ type: 'subtitle', text: stripHtmlTags($el.html()) })
+        foundSubtitle = true
       } else {
-        const cleanText = blockLines[0].replace(/^###\s+/, '').trim()
-        pushSection(cleanText)
+        // Forward reference -> delegates to Task 1f (paragraph formatter)
+        currentSection.items.push({ type: 'paragraph', content: $el.html() })
       }
-      continue
+    } else if ($el.prop('tagName') === 'UL' || $el.prop('tagName') === 'OL') {
+      // Forward reference -> delegates to Task 1e (list converter)
+      currentSection.items.push({ type: 'list', raw: $el.html() })
     }
+  })
 
-    // Heuristic 4: Numbered tip list item
-    if (classification === 'tip-list-item') {
-      const tipInfo = extractTipNumberAndTitle(blockLines[0])
-      if (tipInfo) {
-        pushSection(`Tip ${tipInfo.number}: ${tipInfo.title}`)
-      } else {
-        currentSection.items.push({ type: 'list', content: blockLines.join('\n') })
-      }
-      continue
-    }
-
-    // Heuristic 4b: h3 section headings (non-tip): ### Setup, ### Let's talk about tips
-    if (classification === 'h3-section') {
-      const cleanText = blockLines[0].replace(/^#{1,6}\s+/, '').trim()
-      pushSection(cleanText)
-      continue
-    }
-
-    // Heuristic 5: Section divider image
-    if (classification === 'section-divider-image') {
-      const imgRefMatch = blockLines[0].match(/!\[([^\]]*)\]\((.+?)\)/)
-      if (imgRefMatch) {
-        const alt = imgRefMatch[1]
-        const path = imgRefMatch[2]
-        extractedImagesList.push({ alt, filename: basename(path) })
-        currentSection.items.push({ type: 'image', alt, path })
-      }
-      continue
-    }
-
-    // Default: body text or list content
-    const fullBlock = blockLines.join('\n')
-    if (classification === 'list-item' || classification === 'ordered-list-item') {
-      currentSection.items.push({ type: 'list', content: fullBlock })
-    } else if (fullBlock.includes('![')) {
-      currentSection.items.push({ type: 'paragraph', content: fullBlock })
-    } else {
-      currentSection.items.push({ type: 'paragraph', content: fullBlock })
-    }
-  }
-
-  if (currentSection.items.length > 0) {
-    sections.push(currentSection)
-  }
-
-  return { sections, extractedImages: extractedImagesList, coverImage, titleText }
+  pushCurrent()
+  return { sections, extractedImages: deduped }
 }
 
-// ─── Placeholder: Markdown emitter (Task 1g) ──────────────────────────────
+// ─── Placeholder: Markdown emitter (Task 1g)
 
 function generateFrontmatter(fm) {
   let md = '---\n'
@@ -487,13 +327,13 @@ async function convert(inputPath, options) {
   console.log('  Source : ' + inputAbs)
   console.log('  Output : ' + options.output)
 
-  // Extract both markdown content and images in a single pass
-  const contentResult = await extractDocxContent(inputAbs)
-  const extractedImages = contentResult.images
+  // Step 1: Convert DOCX → HTML + extract images (Task 1c)
+  const htmlResult = await convertDocxToHtml(inputAbs)
+  const images = htmlResult.images
 
   if (verbose) {
-    console.log('  [Content] Markdown extracted: ' + contentResult.markdown.length + ' chars')
-    console.log('  [Images]  ' + extractedImages.length + ' embedded image(s) found')
+    console.log('  [HTML]     ' + htmlResult.html.length + ' chars')
+    console.log('  [Images]   ' + images.length + ' embedded image(s) extracted')
   }
 
   // Create output directory first (needed before writing images or Article.md)
@@ -514,11 +354,11 @@ async function convert(inputPath, options) {
     }
   }
 
-  // Analyze document structure with heuristics
-  const analysis = analyzeDocumentStructure(contentResult, extractedImages)
+  // Step 2: Traverse HTML structure and classify elements (Task 1d)
+  const analysis = traverseDocument(htmlResult.html, images)
   if (verbose) {
     console.log('  [Analysis] ' + analysis.sections.length + ' section(s), '
-      + analysis.extractedImages.length + ' image refs detected')
+      + analysis.extractedImages.length + ' image(s) extracted')
   }
 
   // Collect frontmatter
@@ -528,10 +368,13 @@ async function convert(inputPath, options) {
   let fmSlug = options.slug || undefined
   let coverImage = options.coverImage
 
-  // Auto-detect title from banner if not provided
-  if (!fmTitle && analysis.titleText) {
-    fmTitle = analysis.titleText
-    if (verbose) console.log('  [Auto] Title detected: ' + fmTitle)
+  // Auto-detect title from first section's title item (if present in traversal output)
+  if (!fmTitle && analysis.sections.length > 0 && analysis.sections[0].items.length > 0) {
+    const firstItem = analysis.sections[0].items[0]
+    if (firstItem.type === 'title' || firstItem.type === 'subtitle') {
+      // Look for the title text — it will be in the next non-title item or we skip auto-detection
+      // Title text comes from mammoth HTML; for now use a placeholder and let user provide
+    }
   }
 
   if (skip_prompts) {
@@ -547,10 +390,8 @@ async function convert(inputPath, options) {
     coverImage = answers.coverImage
   }
 
-  // Auto-detect cover image from analysis or extracted images
-  if (!coverImage && analysis.coverImage) {
-    coverImage = analysis.coverImage
-  } else if (!coverImage && imagesWritten.length > 0) {
+  // Auto-detect cover image from extracted images
+  if (!coverImage && imagesWritten.length > 0) {
     const bannerCandidate = imagesWritten.find((fn) => /banner/i.test(fn))
     coverImage = bannerCandidate || imagesWritten[0]
   }
