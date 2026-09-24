@@ -1,0 +1,9 @@
+[
+  {
+    "slug": "farm-to-table-local-llms",
+    "title": "Farm-to-Table: Building an iOS App with Local LLMs",
+    "date": "2026-09-15",
+    "excerpt": "Lessons from the test kitchen — experimenting with local models, Cline, and Ollama to build a recipe app from scratch.",
+    "coverImage": "./banner.png"
+  }
+]

@@ -1,0 +1,199 @@
+/* ── Cover Image ─────────────────────────────────────────────────── */
+
+.article-page__cover {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Heading overrides for markdown-rendered content ─────────────── */
+
+.article__heading-h2 {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+}
+
+.article__heading-h3 {
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.35;
+}
+
+/* ── Default Markdown Body Styles ────────────────────────────────── */
+
+.article__body {
+  max-width: unset;
+}
+
+.article__body h1,
+.article__body h2,
+.article__body h3,
+.article__body h4,
+.article__body h5,
+.article__body h6 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.article__body h1 { font-size: clamp(1.5rem, 4vw, 2rem); }
+.article__body h2 { font-size: clamp(1.25rem, 3vw, 1.6rem); }
+.article__body h3 { font-size: clamp(1.1rem, 2.5vw, 1.35rem); }
+
+.article__body p {
+  margin-bottom: 1.25rem;
+  line-height: 1.75;
+}
+
+/* ── Blockquote (styled to match existing class) ─────────────────── */
+
+.article__body blockquote,
+.article__body .article__content-blockquote {
+  border-left: 3px solid var(--color-accent);
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  background: var(--color-surface-muted);
+  border-radius: 0 var(--radius-sm);
+}
+
+.article__body blockquote p:last-child,
+.article__body .article__content-blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Lists ───────────────────────────────────────────────────────── */
+
+.article__body ul,
+.article__body ol {
+  padding-left: 1.75rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.7;
+}
+
+.article__body ul ul,
+.article__body ul ol,
+.article__body ol ul,
+.article__body ol ol {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.article__body li {
+  margin-bottom: 0.25rem;
+}
+
+/* ── Code ────────────────────────────────────────────────────────── */
+
+.article__body code {
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+  font-size: 0.9em;
+  background: var(--color-surface-muted);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+}
+
+.article__body pre {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-sm);
+  line-height: 1.6;
+}
+
+.article__body pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+/* ── Tables (GFM) ───────────────────────────────────────────────── */
+
+.article__body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+
+.article__body th,
+.article__body td {
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.article__body th {
+  background: var(--color-surface-muted);
+  font-weight: 600;
+}
+
+.article__body thead tr th:first-child {
+  border-top-left-radius: var(--radius-sm);
+}
+
+.article__body thead tr th:last-child {
+  border-top-right-radius: var(--radius-sm);
+}
+
+.article__body tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.article__body tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+/* ── Horizontal Rule ─────────────────────────────────────────────── */
+
+.article__body hr {
+  border: none;
+  height: 1px;
+  background: var(--color-border);
+  margin: 2.5rem 0;
+}
+
+/* ── Images inside markdown content ──────────────────────────────── */
+
+.article__body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  margin: 1.5rem 0;
+}
+
+/* ── Links inside markdown content ───────────────────────────────── */
+
+.article__body a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: opacity var(--transition-fast);
+}
+
+.article__body a:hover {
+  opacity: 0.8;
+}
+
+/* ── Emphasis ────────────────────────────────────────────────────── */
+
+.article__body strong {
+  font-weight: 600;
+}
+
+.article__body em {
+  font-style: italic;
+}
+
+/* ── Strikethrough (GFM) ─────────────────────────────────────────── */
+
+.article__body del {
+  opacity: 0.65;
+}

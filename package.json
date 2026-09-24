@@ -4,22 +4,32 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "node scripts/generate-articles-manifest.mjs && vite",
+    "build": "tsc -b && vite build && node scripts/generate-articles-manifest.mjs",
+    "importDocx": "node scripts/import-docx.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "gray-matter": "^4.0.3",
+    "mammoth": "^1.12.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.28.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@types/node": "^26.6.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "cheerio": "^1.2.0",
     "typescript": "^5.6.3",
-    "vite": "^4.5.5"
+    "vite": "^4.5.5",
+    "web-streams-polyfill": "^4.3.0"
   },
   "engines": {
     "node": ">=18.0.0"

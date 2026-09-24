@@ -5,6 +5,7 @@ const navItems = [
   { to: '/', label: 'Home', end: true },
   { to: '/projects', label: 'Projects' },
   { to: '/about', label: 'About Me' },
+  { to: '/articles', label: 'Articles' },
 ] as const
 
 function Layout() {
