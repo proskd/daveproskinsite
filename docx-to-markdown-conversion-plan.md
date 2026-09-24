@@ -646,7 +646,7 @@ Add a new entry to trigger the DOCX import pipeline:
 
 Usage: `npm run importDocx` — runs the same flow as `npm run importArticles` but for .docx files only.
 
-### Task 4: Tests / Validation
+### Task 4: Tests / Validation ✅ DONE
 
 | Test | Description |
 |---|---|
@@ -659,6 +659,8 @@ Usage: `npm run importDocx` — runs the same flow as `npm run importArticles` b
 | No artificial headings | Output does NOT contain `## Introduction`, `## Setup`, `## Let's talk about tips`, or `## Agent configuration` — these were not in DOCX Heading 3 style |
 | Batch mode (skip-prompts) | Script runs non-interactively with `--skip-prompts --slug ... --title ...` |
 | Interactive mode | Prompt flow matches existing PDF converter's UX |
+
+**Test script:** `scripts/test-docx-validation.mjs` — 72 assertions, all passing. Covers all 9 test scenarios from the table above plus frontmatter validation and structural comparison with online mammoth output target.
 
 ---
 
