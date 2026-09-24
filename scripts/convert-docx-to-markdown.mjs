@@ -266,13 +266,79 @@ function traverseDocument(html, images) {
         currentSection.items.push({ type: 'paragraph', content: $el.html() })
       }
     } else if ($el.prop('tagName') === 'UL' || $el.prop('tagName') === 'OL') {
-      // Forward reference -> delegates to Task 1e (list converter)
-      currentSection.items.push({ type: 'list', raw: $el.html() })
+      // Task 1e — list converter: recursive nested list → indented markdown
+      // $el[0] unwraps the cheerio jQuery-like wrapper to get the native element
+      // with iterable .children that convertList expects.
+      currentSection.items.push({ type: 'list', content: convertList($el[0], 0) })
     }
   })
 
   pushCurrent()
   return { sections, extractedImages: deduped }
+}
+
+// ─── Task 1e: List converter (nested list → indented markdown) ────────────────
+
+/**
+ * Recursively convert a <ul> or <ol> DOM element into indented Markdown list text.
+ * Handles arbitrary nesting depth via recursive depth tracking.
+ * Uses native DOM APIs — no cheerio dependency required.
+ *
+ * @param {HTMLElement} listEl — <ul> or <ol> element from DOM
+ * @param {number} depth — current nesting depth (0 = top-level)
+ * @returns {string} Markdown-formatted list text with proper indentation
+ */
+function convertList(listEl, depth) {
+  const isOrdered = listEl.tagName === 'OL' || listEl.tagName === 'ol'
+  let md = ''
+  let count = 0
+
+  for (const child of listEl.children) {
+    // Skip non-element nodes (text nodes / whitespace)
+    if (child.nodeType !== 1) continue
+    if (child.tagName !== 'LI' && child.tagName !== 'li') continue
+    count++
+
+    // Collect text from children and extract nested lists.
+    // Mammoth outputs list item text as TEXT NODES directly inside <li> (nodeType=3),
+    // NOT wrapped in <p> tags.  Cheerio auto-closing can also create <p>/<ul> siblings
+    // when content has mixed formatting. We handle all cases:
+    //   - Direct text nodes: nodeType === 3 → .data contains the text
+    //   - <p> elements: extract all descendant text
+    //   - Nested <ul>/<ol>: recurse into convertList for indented sub-items
+    let text = ''
+    let nestedMd = ''
+
+    function collectText(node) {
+      if (node.type === 'text' || typeof node.data === 'string') return node.data || ''
+      for (const c of node.children || []) { text += collectText(c) }
+      return text
+    }
+
+    for (const gc of child.children) {
+      // Text nodes directly inside <li> (mammoth default for simple list items)
+      if ((gc.nodeType === 3 || gc.type === 'text' || typeof gc.data === 'string') && !gc.tagName) {
+        const t = (gc.textContent ?? gc.data ?? '').trim()
+        if (t) text += t
+      } else if (gc.tagName && (gc.tagName !== 'UL' && gc.tagName !== 'ul' &&
+             gc.tagName !== 'OL' && gc.tagName !== 'ol')) {
+        // Any non-list element (<p>, <em>, <strong>, etc.) contributes its descendant text
+        // Only first such element to avoid duplication with direct text nodes
+        if (!text) text = collectText(gc).trim()
+      } else if ((gc.tagName === 'UL' || gc.tagName === 'ul') && gc.children.length > 0) {
+        nestedMd += convertList(gc, depth + 1) + '\n'
+      } else if ((gc.tagName === 'OL' || gc.tagName === 'ol') && gc.children.length > 0) {
+        nestedMd += convertList(gc, depth + 1) + '\n'
+      }
+    }
+
+    // Add the current item and any nested list markdown (appended after)
+    const prefix = isOrdered ? `${count}. ` : '- '
+    md += '  '.repeat(depth) + prefix + text + '\n'
+    if (nestedMd) md += nestedMd
+  }
+
+  return md.trimEnd()
 }
 
 // ─── Placeholder: Markdown emitter (Task 1g)
