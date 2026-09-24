@@ -50,52 +50,93 @@ The element:type syntax maps a docx style to an HTML element. The :fresh suffix 
 
 - includeContent(element, next): Intercept and transform any element before conversion
 - convertImage(innerElement, options): Control how embedded images are rendered
-- images.imgElement(element): Callback for image element extraction
-
-### AST via documents() - RECOMMENDED APPROACH
-
-    import { documents } from "mammoth"
-    const result = await documents(docxBuffer)
-    // result.value is a DOM tree with types like document, paragraph, list-item
-
-This returns a structured tree (not HTML) that lets us inspect style names, image references, and nesting directly.
+- images.imgElement(callback): Pass a callback to extract each image during conversion
 
 ---
 
-## 2. Analysis of Current Test Output (testdocx1.html)
+## 2. Analysis of DOCX Structure and Mammoth Output
 
-The sample file rawArticles/farmtotable-iosappwithlocalllms.docx was converted via mammoth to testdocx1.html. Key findings:
+The sample file `rawArticles/farmtotable-iosappwithlocalllms.docx` was analyzed both at the XML level (DOCX internal structure) and via mammoth HTML conversion (`testdocx1.html`). The target output is defined by `onlineresults/farmtotable-iosappwithlocalllms.md`.
 
-### Element counts in the HTML output
+### DOCX Internal Style Analysis
 
-- ~78 <p> (paragraphs) - most body content; many section titles are plain p tags, NOT headings
-- 14 <h3> - used for SECTION IMAGE MARKERS between paragraphs, not actual article headings
-- 6 <img> - embedded as base64 data URIs; alt attribute contains original filename (banner.png, section1.jpg, etc.)
-- 6 <ul>, 26 <li> - unordered lists including nested lists (Word indented sub-items become inner ul)
-- 2 <ol> - ordered lists (5-item tip summary)
-- 2 <strong> - bold text fragments
-- 12 <em> - italic text (model names, list titles, emphasis)
-- 9 <br/> - line breaks (double-breaks used as paragraph separators)
+| DOCX Style | Count | What it contains |
+|---|---|---|
+| **Body** | 84 paragraphs | All body text, intro paragraphs, list items, sub-paragraphs |
+| **Heading 3** | 7 paragraphs | Tip headings (`1. Write down your plan...`, `2. Keep your work...`, etc.), image-only dividers (h3 wrapping only an img), closing section (`Et - Voila!`) |
+| **Title** | 1 paragraph | Article title: "Farm-to-Table: Building an iOS App with Local LLMs" |
+| **Subtitle** | 1 paragraph | Subtitle text: "Lessons from the test kitchen" |
 
-### CRITICAL FINDING: Missing headings
+### Mammoth HTML Conversion Output (verified)
 
-Several sections that exist as proper ## Heading 2 elements in the target Article.md are NOT produced as heading tags by mammoth. They appear as plain text before/after paragraphs or lists:
+| Element | Count | Details |
+|---|---|---|
+| `<h3>` | **7** | All content headings — **mammoth correctly maps DOCX Heading 3 to `<h3>`**. No H1/H2 elements produced. |
+| `<p>` | ~85+ | Body paragraphs, Title/Subtitle text (plain `<p>`, NOT mapped to h1/h2 by default) |
+| `<img>` | **6** | Base64 data URIs with alt-text: `f-t-tbl-banner.png`, `section1.jpg`–`section5.jpg` |
+| `<ul>` | **2** | Setup list (with nested `<ul>`) + Agent config sub-list |
+| `<li>` | 13+ | List items including nested ones |
+| `<ol>` | **1** | Tips overview ordered list (5 items, each with `<em>` wrapping) |
+| `<strong>` | **1** | Bold text in Tip 2's "Example prompt:" block |
+| `<em>` | ~40+ | Italic text: model name, tip list items, emphasis |
+| `<br/>` | ~9 | Line breaks within paragraphs (double-breaks as separators) |
 
-| Should be Markdown | In mammoth HTML - Actual form |
-| Introduction (heading) | Not present - no Introduction text at all in docx |
-| ## Setup | Plain text "Setup" immediately before a ul |
-| ## Lets talk about tips | Not found in the HTML output at all |
-| ## Tip 1 through Tip 5 | Text only inside an em-wrapped li within an ordered list |
+### CRITICAL FINDING: Mammoth produces `<h3>` for all DOCX Heading 3 elements
 
-Root cause: The docx file uses non-standard styling for these sections. Word likely treats them as styled paragraphs with custom formatting, or as manually typed text, rather than applying built-in Heading 1/2/3 styles that mammoth maps to HTML heading tags.
+**Contrary to the original assumption**, mammoth **does** produce proper `<h3>` tags for all Heading 3 DOCX style elements. These are exactly the article's section headings:
+
+| H3 Index | Mammoth `<h3>` content | Markdown output |
+|---|---|---|
+| 1 | `[img]` (image-only) | Section divider image — NOT a heading |
+| 2 | `1. Write down your plan - and then some` | `## 1. Write down your plan - and then some` |
+| 3 | `2. Keep your work bite sized` | `## 2. Keep your work bite sized` |
+| 4 | `3. Get to good and go` | `## 3. Get to good and go` |
+| 5 | `4. Know when (and be ready) to step in` | `## 4. Know when (and be ready) to step in` |
+| 6 | `5. I say patience` | `## 5. I say patience` |
+| 7 | `Et - Voila!` | `## Et - Voila!` |
+
+### Title and Subtitle handling
+
+mammoth **does NOT** auto-convert DOCX `Title` and `Subtitle` paragraph styles to `<h1>`/`<h2>`. They come through as plain `<p>` tags. Detection must be content-based (first `<p>` contains banner image + title text; second `<p>` is short subtitle text).
+
+### Section structure mapping: DOCX mammoth → Online Result target
+
+| DOCX content order | Mammoth HTML | Target Markdown (online result) |
+|---|---|---|
+| Title style paragraph (with banner img) | `<p>[img]Title Text</p>` | `# Title Text` (h1 + subtitle as parenthetical on same line, or separate h2) |
+| Subtitle style | `<p>Lessons from the test kitchen</p>` | Included after title |
+| Intro paragraphs (Body style) | `<p>...</p>` × several | Body paragraphs with no heading prefix |
+| "Before we go any further, here's the TL;DR of my setup:" + `<ul>` with nested `<ul>` | `<p>...setup:</p><ul><li>Hardware...</li><li>LLM Setup<ul>...</ul></li></ul>` | Body text + properly indented list (nested via 2-space indent) |
+| "How did I get here..." question | `<p>How did I get here...</p>` | Body paragraph, no heading |
+| Tips overview ordered list (`<ol><li><em>...</em></li>`) ×5 | `<ol>` with 5 italic items | Body text + ordered/italic list items, each on its own line |
+| H3 `[img]` (section divider) | `<h3><img alt="section1.jpg"...></h3>` | `![Agent config](./section1.jpg)` image reference |
+| H3 heading → body paragraphs ×N → next h3 | `<h3>...</h3><p>...</p>` × many → `<h3>...` | `## Heading\n\nParagraphs...\n\n[optional images]\n\n` |
 
 ### Image metadata from alt attribute
 
 | alt | Implied filename | Likely role |
+|---|---|---|
 | f-t-tbl-banner.png | banner.png | Cover image (appears first in document) |
-| section1.jpg | section1.jpg | Section divider image |
-| section2.jpg | section2.jpg | Section divider image |
-| section3.jpg | section3.jpg | Section divider image |
+| section1.jpg | section1.jpg | Section divider between intro and Tip 1 |
+| section2.jpg | section2.jpg | Section divider within Tip 1 |
+| section3.jpg | section3.jpg | Section divider within Tip 2 |
+| section4.jpg | section4.jpg | Section divider within Tip 3 |
+| section5.jpg | section5.jpg | Section divider within Tip 4 |
+
+### Notes on the online result vs. existing Article.md differences
+
+The online result (`onlineresults/farmtotable-iosappwithlocalllms.md`) is the **faithful** conversion that our script should match. The existing `Article.md` has several manual edits that deviate from the source DOCX:
+
+| Aspect | Online Result (target) | Existing Article.md (manually edited) |
+|---|---|---|
+| Title rendering | `# Farm-to-Table... Lessons from the test kitchen` (h1 on page) | Only in frontmatter, no h1 on page |
+| "Introduction" heading | **Absent** (no such text in DOCX) | Added as `## Introduction` |
+| "Setup" heading | **Absent** ("Setup" is Body-style text inside list item) | Added as `## Setup` |
+| "Let's talk about tips" | **Absent** (plain text, not a heading in DOCX) | Added as `## Let's talk about tips` |
+| Tip headings format | `## 1. Write down your plan - and then some` (numbered from DOCX H3) | `## Tip 1: Write down your plan...` (manually prefixed with "Tip") |
+| Agent configuration section | Not present (no h3 subheading for this in DOCX; just body text + nested list) | Added as `## Agent configuration` |
+| List formatting | Flat `- item` per bullet line, no bold on keys | Bold keys like `**Hardware:**`, code formatting `` `model-name` `` |
+| Tips overview format | Each item italic on its own line (`_1. ..._\n\n_2. ..._`) | Single `- item` bullet list (merged) |
 | section4.jpg | section4.jpg | Section divider image |
 | section5.jpg | section5.jpg | Section divider image |
 
@@ -111,7 +152,7 @@ This needs to become properly indented Markdown with 2-space indent per level.
 
 ## 3. Target Markdown Format (Article.md)
 
-Every article folder under public/articles/slug/ must contain an Article.md with this structure:
+Every article folder under `public/articles/slug/` must contain an Article.md with this structure:
 
     ---
     slug: farm-to-table-local-llms
@@ -121,62 +162,107 @@ Every article folder under public/articles/slug/ must contain an Article.md with
     coverImage: ./banner.png
     ---
 
-    ## Introduction
+    # Farm-to-Table: Building an iOS App with Local LLMs _(<i>Lessons from the test kitchen</i>)_
 
     I posted a little while ago about...
 
-    ## Setup
-
     Before we go any further, here's the TL;DR of my setup:
 
-    - **Hardware:** Macbook Pro 2021 M1 Max, 64GB RAM
-    - **LLM Setup**
+    - Macbook Pro 2021 M1 Max, 64GB RAM
       - VS Code IDE
-      - ...
+        - Cline
+        - Ollama
+          - qwen3.6:35b-a3b-q8_0
 
-    ## Tip 1: Write down your plan - and then some
+    _1. Plan ahead with your LLM_
+
+    _2. Give it defined tasks..._
+
+    _3. Set up the right hardware..._
+
+    _4. Know when to step in..._
+
+    _5. Practice patience..._
+
+    ## 1. Write down your plan - and then some
 
     This is the step where you might argue...
 
+    **Example prompt:** We are working on...
+
     ![Agent config](./section1.jpg)
+
+    ## 2. Keep your work bite sized
+
+    ...
 
 ### Key conventions
 
 | Convention | Detail |
 |---|---|
-| Headings | ## for main sections (no deeper than H3 needed currently) |
-| Cover image | Referenced in frontmatter as ./banner.png; first image from docx |
-| Inline images | Referenced after the paragraph that introduces them: ![alt](./filename.jpg) |
-| Bold text | **text** for emphasis; keys in lists like **Hardware:** |
-| Italic/code | `code` for code references, *italic* for emphasis |
-| Lists | - bullets, 1. numbers; nested via 2-space indent per level |
+| Title | `# Title text` as h1 (visible on page), subtitle inline with `_italic_` after title on same line |
+| Cover image | Referenced in frontmatter as `./banner.png`; first image from docx |
+| Inline images | Referenced after the paragraph that introduces them: `![alt](./filename.jpg)` |
+| Headings | `## N. Title` for content headings — extracted directly from DOCX Heading 3 → `<h3>` via mammoth |
+| Bold text | `**text**` for emphasis (e.g., "Example prompt:") |
+| Italic/code | `*italic*` for emphasis; `` `code` `` for code references |
+| Lists | `- bullets`, `1. numbers`; nested via 2-space indent per level |
+| Body paragraphs | Plain text paragraphs — no headings inserted for content that isn't marked as heading in DOCX |
 | TODO markers | Trailing comments for human review after import |
+
+### Section structure reference (faithful to DOCX)
+
+The script should produce output matching `onlineresults/farmtotable-iosappwithlocalllms.md` — a faithful conversion of the DOCX content:
+
+1. Frontmatter
+2. `# Title` heading (from Title style `<p>`, with banner image)
+3. Inline subtitle `_Subtitle text_` on same line as title or next paragraph
+4. Body paragraphs (intro text, TL;DR setup list — no headings)
+5. Tips overview: italic numbered items from the DOCX's ordered list (`_1. ..._`)
+6. `## 1. Title` through `## 5. Title` — directly from H3 headings → `## text`
+7. Section divider images between tips (from img-only `<h3>` tokens)
+8. `## Et - Voila!` — closing section
+9. TODO note at the bottom
+
+> **Important**: The script must NOT insert artificial headings like "Introduction", "Setup" as `## Setup`, "Let's talk about tips" as `## Let's talk about tips`, or "Agent configuration" as `## Agent configuration`. These were manually added in the existing Article.md but do not exist as Heading 3 elements in the DOCX source.
 
 ---
 
-## 4. Architecture: AST-Based Conversion Strategy
+## 4. Architecture: HTML-Based Conversion Strategy
 
-We work directly with mammoth's interpreted DOM via `mammoth.documents(docxBuffer)` to get structured data, then write a custom Markdown emitter.
+We use `mammoth.convertToHtml()` with a custom image handler to produce an HTML string, then walk that HTML sequentially to classify each element as one of: Title paragraph, Subtitle paragraph, body paragraph, list, content heading (`## text`), or divider image.
 
-### Why AST over HTML parsing?
+### Why HTML parsing (no heuristics)?
 
-The critical issue from section 2 is that many sections that should be headings are NOT heading tags in the HTML output. They appear as plain text or inside list items. Parsing HTML would not solve this problem - we need access to paragraph content and position, which the AST provides directly.
+Unlike the original assumption, mammoth **does** produce proper `<h3>` tags for all DOCX Heading 3 style elements. The article's section headings are all DOCX Heading 3 and are correctly rendered as `<h3>` by mammoth. No content-based heuristics (regex text patterns, ordered-list scanning) are needed for heading detection.
+
+The only classification needed is:
+- `<h3>` containing ONLY an `<img>` → image divider (not a heading)
+- `<h3>` containing text → `## heading` output
+- Everything else (`<p>`, `<ul>`, `<ol>`) → body content
+
+The Title and Subtitle styles come as plain `<p>` tags, so those require simple content-based detection (first `<p>` with banner image = Title; second short `<p>` = Subtitle).
 
 ### Conversion pipeline overview
 
     DOCX file (rawArticles/*.docx)
         |
         v
-    [1] mammoth.documents() --> Interpreted DOM tree
+    [1] mammoth.convertToHtml() --> HTML string + extracted images
+            Custom image handler captures each image with alt-text, MIME type, base64
+            No styleMap needed — all H3 headings auto-produced by mammoth
         |
-        +-----> [2a] Image extraction pass (via images.docx callback)
-        |         Write base64 images to output folder
+        +-----> [2a] Title/Subtitle detector (Task 1i)
+                 Scan first <p> for banner img → Title; second short <p> → Subtitle
         |
-        +-----> [2b] AST traversal & heading detection
-        |         Identify sections, build section structure
+        +-----> [2b] Main traversal (Task 1d)
+                 Walk HTML sequentially: classify each element as paragraph/list/h3-heading/h3-divider
         |
-        +-----> [2c] Markdown generation
-        |         Convert paragraphs, lists, images to md syntax
+        +-----> [2c] Content formatting (Tasks 1f, 1e)
+                 Convert paragraphs to markdown text; convert lists to indented markdown
+        |
+        +-----> [2d] Markdown generation
+                 Assemble frontmatter → Title/Subtitle → sections with headings, paragraphs, images
         |
         v
     [3] Frontmatter collection (interactive or CLI args)
@@ -223,97 +309,289 @@ Interactive mode (no --skip-prompts):
 
 Copy/replicate the parseArgs() function from convert-pdf-to-markdown.mjs. Same signature and behavior.
 
+**Deliverable**: `parseArgs(argv)` → `{ verbose, input, output, title, date, excerpt, slug, skipPrompts }`.
+
 #### 1b. Frontmatter collection (interactive or from args)
 
-Replicate interactiveFrontmatter() from the PDF converter. Identical flow: collect slug, title, date, excerpt, coverImage. Use defaults when --skip-prompts is set.
+Replicate interactiveFrontmatter() from the PDF converter. Identical flow: collect slug, title, date, excerpt, coverImage. Use defaults when --skip-prompts is set. The coverImage should default to the first image extracted by Task 1c (the banner).
 
-The coverImage should default to the first image extracted from the docx (the banner).
+**Deliverable**: `collectFrontmatter(flags)` → `{ title, slug, date, excerpt, coverImage }`.
 
-#### 1c. DOCX AST extraction
+#### 1c. DOCX → HTML conversion + inline image extraction
 
-    import { documents } from "mammoth"
-    import { readFile } from "fs/promises"
+Use mammoth's public API: `convertToHtml()` with a custom image handler. The return value is an **HTML string**.
 
-    const docxBuffer = await readFile(inputPath)
-    const result = await documents(docxBuffer)
-    if (result.messages.length > 0) console.warn("Mammoth messages:", result.messages)
-    const document = result.value  // DOM tree
+**Important**: No `styleMap` is needed. Mammoth automatically maps standard DOCX heading styles (`Heading 1`, `Heading 2`, `Heading 3`) to `<h1>`, `<h2>`, `<h3>` respectively. For this article, all section headings use `Heading 3` and are correctly produced as `<h3>` tags — no custom mapping required. The `Title` and `Subtitle` styles do NOT auto-map to `<h1>`/`<h2>`; they remain as plain `<p>` tags, which we detect via content heuristics in Task 1d.
 
-#### 1d. Document structure analyzer / heading detector
+```js
+import mammoth from "mammoth"
+import { readFile } from "fs/promises"
 
-This is the **core intelligence** of the converter. Since mammoth doesn't reliably produce heading tags, we need heuristics to identify section boundaries:
+const docxBuffer = await readFile(inputPath)
+const extractedImages = []  // [{ alt, mimeType, base64 }]
 
-| Heuristic | Detection rule | Markdown output |
-|---|---|---|
-| Banner/title area | First p containing img element + text after it --> title extraction | Frontmatter title, coverImage = first image filename from alt |
-| Setup label | Paragraph containing ONLY "Setup" (case-insensitive) before a ul | ## Setup |
-| Numbered tips in ordered list | Ordered list items matching /^tip\\s*\\d/i and italicized (em) | Convert to ## Tip N: title headings |
-| Section divider images | h3 elements containing ONLY an img --> section markers | Extract filename, produce ![alt](./filename.jpg) after preceding paragraph |
-| Default body text | Any other paragraph | Regular p in markdown |
+const result = await mammoth.convertToHtml({ buffer: docxBuffer }, {
+  convertImage: mammoth.images.imgElement(function(image) {
+    return image.readAsBase64String().then(function(base64) {
+      extractedImages.push({ alt: image.altText, mimeType: image.contentType, base64 })
+      return { src: "data:" + image.contentType + ";base64," + base64 }
+    })
+  })
+})
 
-Implementation: Iterative traversal over paragraphs and lists. Push sections when a heading candidate is found (emit previous section, start new one). Otherwise append content to current section.
+if (result.messages.length > 0) console.warn("Mammoth messages:", result.messages)
+// result.value is an HTML string — parsed in Task 1d
+```
 
-#### 1e. List flattener / indentor
+Key points:
+- No styleMap needed. All H3 headings from DOCX are produced as `<h3>` by mammoth automatically.
+- Images are extracted into `extractedImages[]` array during conversion — single pass (not two-pass).
+- The HTML string contains all content: `<p>` tags (Body, Title, Subtitle styles), `<h3>` tags (Heading 3 style = section headings + dividers), lists (`<ul>`, `<ol>`), images as base64 data URIs.
 
-Convert nested ul/ol structures to properly indented Markdown lists using recursive depth tracking:
+**Deliverable**: Function `convertDocxToHtml(docxPath)` returns `{ html, images: [{ alt, mimeType, base64 }] }`.
 
-    function convertList(listEl, depth) {
-      const isOrdered = listEl.type === "ordered-list"
-      let md = ""
-      for (const item of listEl.children) {
-        if (item.type !== "list-item") continue
-        const firstPara = item.children.find(c => c.type === "paragraph")
-        const text = firstPara ? extractText(firstPara.children, true) : ""
-        const prefix = isOrdered ? index + ". " : "- "
-        md += ("  ".repeat(depth)) + prefix + text + "\\n"
-        // Recurse into nested lists
-        for (const nl of item.children.filter(c => c.type === "unordered-list" || c.type === "ordered-list")) {
-          md += convertList(nl, depth + 1)
-        }
-      }
-      return md.trimEnd()
+#### 1d. Main traversal pipeline
+
+Assemble all handlers (Tasks 1e, 1f, and 1i) into a single coordinator function that walks the HTML sequentially:
+
+```js
+async function traverseDocument(html, images) {
+  const sections = []       // [{ heading?: string, items: [...]}]
+  let currentSection = null
+  
+  function pushCurrent() {
+    if (currentSection && currentSection.items.length > 0) {
+      sections.push(currentSection)
     }
+    currentSection = { heading: null, items: [] }
+  }
+  
+  // Iterate through HTML elements sequentially
+  const tokenizer = tokenizeHtml(html) // breaks HTML into element tokens
+  
+  for (const el of tokenizer) {
+    if (el.tagName === "h3") {
+      if (isImageOnlyH3(el)) {
+        currentSection.items.push({ type: "divider", imageAlt: getH3ImgAlt(el) })
+      } else {
+        pushCurrent()
+        const text = stripHtmlTags(el.innerHTML).trim()
+        currentSection.heading = text
+      }
+    } else if (el.tagName === "p") {
+      // Check if this is Title/Subtitle paragraph
+      if (!foundTitle && hasImage(el)) {
+        currentSection.items.push({ type: "title", imageAlt: getImgAlt(el) })
+        foundTitle = true
+      } else if (!foundSubtitle && isShortText(el.innerHTML)) {
+        currentSection.items.push({ type: "subtitle", text: stripHtmlTags(el.innerHTML) })
+        foundSubtitle = true
+      } else {
+        currentSection.items.push({ type: "paragraph", content: paragraphToMarkdown(el.innerHTML) })
+      }
+    } else if (el.tagName === "ul" || el.tagName === "ol") {
+      currentSection.items.push({ type: "list", markdown: convertList(el, 0) })
+    }
+  }
+  
+  pushCurrent() // flush last section
+  
+  return { sections, extractedImages: images }
+}
+```
 
-The LLM Setup nested list example:
+**Deliverable**: `traverseDocument(html, images)` -> `{ sections, extractedImages }`.
 
-    - **Hardware:** Macbook Pro 2021 M1 Max, 64GB RAM
-    - **LLM Setup**
+---
+
+#### 1e. List converter (nested list → indented markdown)
+
+Convert nested HTML `<ul>/<ol>` structures to properly indented Markdown lists using recursive depth tracking. Handles the Setup list with its LLM Setup sub-list, and the Tips overview ordered list:
+
+```js
+function convertList(listEl, depth) {
+  const isOrdered = listEl.tagName === "OL"
+  let md = ""
+  for (const item of listEl.children) {
+    if (item.tagName !== "LI") continue
+    const firstPara = item.querySelector("p")
+    const text = firstPara ? paragraphToMarkdown(firstPara.innerHTML) : ""
+    const prefix = isOrdered ? `${count}. ` : "- "
+    md += ("  ".repeat(depth)) + prefix + text + "\n"
+    for (const nl of item.querySelectorAll("ul, ol")) {
+      md += convertList(nl, depth + 1)
+    }
+  }
+  return md.trimEnd()
+}
+```
+
+Example Setup list output:
+
+    - Macbook Pro 2021 M1 Max, 64GB RAM
+    - LLM Setup
       - VS Code IDE
       - Cline
       - Ollama running the models
-      - Model: `qwen3.6:35b-a3b-q8_0`
+      - qwen3.6:35b-a3b-q8_0
 
-#### 1f. Image extractor & writer (TWO-PASS approach)
+**Deliverable**: `convertList(listElement)` -> indented markdown string.
 
-Use two independent mammoth passes for reliability:
+---
 
-    Pass 1: const docResult = await documents(docxBuffer)       // structure
-    Pass 2: const imgResult = await images.docx(docxBuffer)     // images with filenames
+#### 1f. Paragraph content formatter
 
-For each image, extract the alt attribute as filename (e.g., "banner.png"), decode base64, and write to output folder.
+Convert HTML paragraph content to Markdown text, preserving inline formatting:
+- `<strong>` / `<b>` -> `**bold**`
+- `<em>` / `<i>` -> `*italic*`
+- `<code>` or inline monospace style -> backtick code
+- `<a href="...">text</a>` -> `[text](url)`
+- Multiple spaces/line breaks collapsed to single space
 
-#### 1g. Markdown emitter
+Helper function:
+
+```js
+function paragraphToMarkdown(htmlParagraph) {
+  // Extract text and apply inline transformations
+  // Handle bold, italic, code, links, tabs
+}
+```
+
+**Deliverable**: `formatParagraph(html)` -> `{ type: "paragraph", content: string }`.
+
+---
+
+#### 1i. Title/Subtitle detector
+
+Detect the Title and Subtitle paragraphs from mammoth output (they appear as plain `<p>` tags, not h1/h2):
+
+- **Title**: The first `<p>` in the document that contains both an `<img>` tag AND text content. Extracts the title text (excluding the image) and the banner image alt-text.
+- **Subtitle**: The second distinct `<p>` paragraph — typically short (under ~50 chars) with no images.
+
+Output tokens:
+- `{ type: "title", text, imageAlt }` → emitted as `# {text}` in markdown
+- `{ type: "subtitle", text }` → appended after title as `_({text})_` inline or separate paragraph
+
+**Deliverable**: Function `detectTitleSubtitle(html)` → `{ title, subtitle } | null`.
+
+---
+
+#### 1j. Image extractor & writer
+
+The main conversion (Task 1c) already extracts images into the `extractedImages[]` array via the `imgElement` callback. Task 1j handles:
+1. Deduplicating images (same base64 content appearing multiple times).
+2. Assigning filenames: first image → `banner.png`; rest → `sectionN.jpg` based on alt-text pattern or sequential ordering.
+3. Writing each image to the output folder and returning `{ filename, path }` metadata.
+
+```js
+async function writeExtractedImages(images, outputDir) {
+  const written = []
+  for (let i = 0; i < images.length; i++) {
+    let filename
+    if (i === 0) {
+      // First image is always the banner
+      filename = `banner.${images[i].mimeType.split('/')[1] || 'png'}`
+    } else {
+      const altMatch = images[i].alt?.match(/section(\d+)\./)
+      if (altMatch) {
+        filename = `section${altMatch[1]}.jpg`
+      } else {
+        filename = `image-${i}.${images[i].mimeType.split('/')[1] || 'jpg'}`
+      }
+    }
+    while (written.some(w => w.filename === filename)) {
+      filename = `${filename}-copy`
+    }
+    const fullPath = join(outputDir, filename)
+    await writeFile(fullPath, Buffer.from(img.base64, "base64"))
+    written.push({ filename, originalAlt: img.alt })
+  }
+  return written
+}
+```
+
+**Deliverable**: `writeExtractedImages(images, outputDir)` -> `{ filename, path }[]` array.
+
+---
+
+#### 1k. Markdown emitter with TODO notes
 
 Assemble frontmatter + body sections into final Article.md:
 
-    function generateMarkdown(frontmatter, sections) {
-      let md = generateFrontmatter(frontmatter) + "\\n\\n"
-      for (const section of sections) {
-        if (section.heading) md += "## " + section.heading + "\\n\\n"
-        for (const item of section.items) {
-          if (item.type === "paragraph") md += item.content + "\\n\\n"
-          else if (item.type === "list") md += item.content + "\\n\\n"
-          else if (item.type === "image") md += "\\n![" + item.alt + "](" + item.path + ")\\n\\n"
-        }
-      }
-      return md + generateTodoNotes()
+```js
+function generateMarkdown(frontmatter, sections, imageMap) {
+  let md = "---\n"
+  for (const [k, v] of Object.entries(frontmatter)) {
+    md += `${k}: ${JSON.stringify(v)}\n`
+  }
+  md += "---\n\n"
+  
+  // Add Title heading (from Task 1i detection)
+  if (frontmatter.title) {
+    md += `# ${frontmatter.title}\n\n`
+    if (frontmatter.subtitle) {
+      md += `_(${frontmatter.subtitle})_\n\n`
     }
+  }
+  
+  for (const section of sections) {
+    if (section.heading) md += "## " + section.heading + "\n\n"
+    for (const item of section.items) {
+      if (item.type === "paragraph") md += item.content + "\n\n"
+      else if (item.type === "list") md += item.content + "\n\n"
+      else if (item.type === "divider") {
+        const img = imageMap.find(w => w.filename === getImageName(item.imageAlt))
+        md += `\n![${item.imageAlt}](./${img?.filename || 'unknown.jpg'})\n\n`
+      }
+    }
+  }
+  
+  return md + generateTodoNotes()
+}
+```
 
-Append the same TODO block used by convert-pdf-to-markdown.mjs for human review.
+The `generateTodoNotes()` function produces the same TODO block used by convert-pdf-to-markdown.mjs (see ~line 200 of that file) to prompt manual review.
 
-#### 1h. CLI entry point / main()
+**Deliverable**: `generateMarkdown(frontmatter, sections, imageMap)` -> final Article.md string.
 
-Mirror the structure of convert-pdf-to-markdown.mjs main(): parse args, collect frontmatter (interactive or from flags), call converter pipeline, write Article.md, print summary.
+---
+
+#### 1l. CLI entry point / main()
+
+Mirror the structure of convert-pdf-to-markdown.mjs main():
+1. Parse args (Task 1a)
+2. Collect frontmatter - interactive or from flags (Task 1b)
+3. Convert DOCX to HTML + extract images (Task 1c)
+4. Detect Title/Subtitle (Task 1i) — needed for frontmatter coverImage and title rendering
+5. Write extracted images to disk (Task 1j)
+6. Traverse document structure (Task 1d)
+7. Generate Article.md (Task 1k)
+8. Print summary: number of headings found, paragraphs, lists, images written
+
+**Deliverable**: `main()` - the full end-to-end pipeline wired together.
+
+The main conversion (Task 1c) already extracts images into the `extractedImages[]` array via the `imgElement` callback. Task 1k handles:
+1. Deduplicating images (same base64 content appearing multiple times).
+2. Assigning sequential filenames if alt-text is missing or invalid (e.g., `image-1.jpg`, `image-2.png`).
+3. Writing each image to the output folder and returning `{ filename, path }` metadata.
+
+```js
+async function writeExtractedImages(images, outputDir) {
+  const written = []
+  for (const img of images) {
+    let filename = slugify(img.alt || `image-${written.length + 1}`)
+    while (written.some(w => w.filename === filename)) {
+      filename = `${filename}-copy`
+    }
+    const fullPath = join(outputDir, filename)
+    await writeFile(fullPath, Buffer.from(img.base64, "base64"))
+    written.push({ filename, originalAlt: img.alt })
+  }
+  return written
+}
+```
+
+**Deliverable**: `writeExtractedImages(images, outputDir)` -> `{ filename, path }[]` array.
 
 ### Task 2: Create scripts/import-docx.mjs
 
@@ -344,12 +622,14 @@ Usage: `npm run importDocx` — runs the same flow as `npm run importArticles` b
 
 | Test | Description |
 |---|---|
-| Round-trip on sample docx | Run convert-docx-to-markdown.mjs on farmtotable-iosappwithlocalllms.docx, compare output to existing Article.md - verify headings, lists, images match |
-| Heading detection accuracy | Ensure all major sections get proper ## headings (no section starts without one) |
-| Image extraction count | All 6 images should be written: banner.png + 5x section*.jpg |
-| Nested list indentation | The LLM Setup nested list must have correct 2-space indent for sub-items |
-| Inline formatting preservation | Bold, italic, and code references survive the conversion |
-| Batch mode (skip-prompts) | Script runs non-interactively with --skip-prompts --slug ... --title ... |
+| Round-trip on sample docx | Run convert-docx-to-markdown.mjs on farmtotable-iosappwithlocalllms.docx, compare output to `onlineresults/farmtotable-iosappwithlocalllms.md` — verify headings (## 1. Title...), lists, images match the online target format |
+| Heading detection accuracy | All 7 H3 elements from mammoth produce correct output: 5 content headings (`## N.`), 1 closing heading (`## Et - Voila!`), 1 image divider — no missing or extra headings |
+| Image extraction count | All 6 images should be written: `banner.png` + 5× `section*.jpg` |
+| Nested list indentation | The Setup list's LLM Setup sub-list must have correct 2-space indent for VS Code IDE, Cline, Ollama, model items |
+| Inline formatting preservation | Bold (`**Example prompt:**`), italic (*qwen3.6...* in setup list; _1. Plan ahead..._ in tips overview) survive conversion |
+| Title/Subtitle rendering | `# Farm-to-Table...` h1 heading rendered from first `<p>` with banner image; subtitle on same line or adjacent paragraph |
+| No artificial headings | Output does NOT contain `## Introduction`, `## Setup`, `## Let's talk about tips`, or `## Agent configuration` — these were not in DOCX Heading 3 style |
+| Batch mode (skip-prompts) | Script runs non-interactively with `--skip-prompts --slug ... --title ...` |
 | Interactive mode | Prompt flow matches existing PDF converter's UX |
 
 ---
@@ -358,23 +638,22 @@ Usage: `npm run importDocx` — runs the same flow as `npm run importArticles` b
 
 | Challenge | Severity | Mitigation |
 |---|---|---|
-| **Missing heading tags** — mammoth does not produce h2/h3 for many sections that should be headings | **High** | AST-based heuristics (section 5.1d): detect section titles by content pattern, numbered tips from ordered lists, standalone labels like "Setup" |
-| **Heading order ambiguity** — original docx has tips listed in an ordered list BEFORE the detailed tip sections; these need to become ## Tip 1, ## Tip 2, etc. in body text | Medium | Detect italicized em text inside ordered list items matching /^tip\\s*\\d/i and transform into heading blocks |
-| **Nested lists** — Word's indented bullet points become nested ul elements; must map to indented Markdown | Medium | Recursive convertList() function (section 5.1e) that tracks depth and produces proper indentation |
-| **Images embedded as base64 in AST** — extracting images from mammoth's interpreted DOM is non-trivial | Medium | Use two passes: documents() for structure AND images.docx() for image extraction with alt filenames |
-| **Inline formatting in lists** — e.g., "Model: code>qwen3.6:35b-a3b-q8_0/code> needs backtick rendering inside list items | Low | The extractText() function handles em, strong, and style names that indicate code formatting |
-| **Section image placement** — mammoth places section images (section1.jpg, etc.) as h3 containers between paragraphs; need to attach them to preceding content block | Medium | When encountering an h3 containing only an img, move the image into the previous paragraph's item list |
-| **Two-document approach** — using both convertToHtml and documents() may produce slightly different results if mammoth's internal state shifts between calls | Low | Read docx buffer once, pass to both functions. Both are deterministic for same input. |
+| **Title/Subtitle not auto-mapped** — mammoth does NOT convert `Title`/`Subtitle` DOCX paragraph styles to `<h1>`/`<h2>`. They appear as plain `<p>` tags. | Medium | Detect first `<p>` containing the banner image (Title style) and second short `<p>` (Subtitle style) via content heuristics in Task 1i. Output as `# Title Text` with subtitle inline. |
+| **Nested lists** — Word's indented bullet points become nested `<ul>` elements; must map to indented Markdown. | Medium | Recursive `convertList()` function (Task 1e) that tracks depth and produces proper 2-space indentation for sub-items. The Setup list has a verified nested `<ul>` inside "LLM Setup". |
+| **Images as base64 data URIs** — extracting images from mammoth's convertToHtml output requires a custom callback. | Medium | Use `mammoth.images.imgElement()` callback during conversion (Task 1c) to capture each image with alt-text, MIME type, and base64 in a single pass. Naming: first → `banner.png`, rest → `sectionN.jpg`. |
+| **Inline formatting** — `<em>` for italics, `<strong>` for bold must become `*italic*` / `**bold**` in Markdown. | Low | The paragraph formatter (Task 1f) handles all inline elements: em→*, strong→**, code→backticks, links→[text](url). |
+| **Section dividers vs content headings** — both are `<h3>`, but only those containing ONLY an `<img>` are dividers. | Low | The main traversal pipeline (Task 1d) detects `<h3>` children: img-only → divider token; any text → heading output `## text`. No separate task needed — logic is inline in the traversal loop. |
+| **"Let's talk about tips" / "Introduction" paragraphs** — these are Body-style plain text, not Heading 3 elements. | None | Remain as plain body text in the output, matching the online result format (no artificial headings inserted). |
 
 ---
 
 ## 7. Decision Points for Review
 
 ### D1: Which conversion approach?
-- **A (AST-based)** — Full control, handles heading detection heuristics cleanly. More code, but mirrors the existing PDF converter's philosophy.
-- **B (HTML-parse approach)** — Faster to prototype. Requires an HTML DOM parser (cheerio recommended as new dependency). Less precision over nested structures.
+- **A (HTML-parse approach)** — Convert DOCX to HTML via `mammoth.convertToHtml()`, then parse the resulting HTML string with lightweight DOM parsing/tokenization. All section headings are produced as `<h3>` by mammoth from DOCX Heading 3 style, so no content-based heuristics for heading detection are needed — only simple classification of `<h3>` as heading vs divider (img-only check).
+- **B (Internal mammoth AST)** — Access mammoth's internal document tree via undocumented `mammoth/lib/documents.js`. More precise but relies on a non-public API that could break between versions.
 
-**DECISION: A (AST-based).** We already know headings are unreliable in HTML output, so parsing HTML does not solve our main problem. The AST gives direct access to paragraph content, style names, and element nesting — exactly what we need for heuristics.
+**DECISION: A (HTML-parse approach).** Using `convertToHtml()` with a custom image handler gives us all the content we need. The HTML output contains `<h3>` tags for all section headings (from DOCX Heading 3), plain `<p>` paragraphs for body/Title/Subtitle, proper list structures (`<ul>`, `<ol>`, nested), and inline formatting (`<em>`, `<strong>`). The only distinction needed is img-only `<h3>` dividers vs text `<h3>` content headings — no complex heuristics.
 
 ### D2: Integration with existing PDF pipeline?
 Should .docx files be auto-discovered by the existing npm run importArticles command, or should there be a separate entry point (npm run importDocx)?
@@ -413,12 +692,33 @@ The existing Article.md has an explicit ## Introduction heading with body text, 
 
 ## 9. Estimated Implementation Effort
 
+### Granular sub-task breakdown for Task 1 (convert-docx-to-markdown.mjs)
+
+Each sub-task below is designed to be small enough for a single agent session (~30-90 min each).
+
+| Sub-task | Complexity | Description | Depends On |
+|---|---|---|---|
+| **1a.** CLI argument parsing | Trivial | Copy parseArgs() from PDF converter | — |
+| **1b.** Frontmatter collection | Low | Replicate interactiveFrontmatter() from PDF converter | 1a |
+| **1c.** DOCX → HTML conversion | Medium | Set up `convertToHtml()` with custom image handler. No styleMap needed (H3 headings auto-mapped). | 1a, 1b |
+| **1d.** Main traversal pipeline | Medium | Walk HTML tokens: Title `<p>`, Subtitle `<p>`, body `<p>`s, lists, `<h3>` headings (text → `## N.`) and dividers (`<h3 img>` → divider tokens). Uses handlers from Tasks 1e–1i. | 1c |
+| **1e.** List converter | Medium | Recursive nested list → indented markdown (handles Setup list + Tips overview ordered list) | 1d |
+| **1f.** Paragraph formatter | Medium | Convert HTML paragraph → markdown with inline formatting (`<em>`→`*`, `<strong>`→`**`, code, links) | 1d |
+| **1i.** Title/Subtitle detector | Low | First `<p>` with banner image → title; second short `<p>` → subtitle. Output as `# Title` and inline italic | 1c, 1d |
+| **1j.** Image extractor & writer | Small | Deduplicate, name (banner.png for first, sectionN.jpg for rest), write extracted images to disk | 1c |
+| **1k.** Markdown emitter | Low | Assemble frontmatter + Title/Subtitle → sections with headings, paragraphs, lists, images | 1d-1i, 1j |
+| **1l.** CLI entry point / main() | Medium | Wire the full pipeline together end-to-end | All above |
+
+> **Note**: This plan replaces the original content-based heuristics (which tried to detect "Setup" labels and "Tip N" headings from paragraph text) with a simpler architecture: mammoth correctly produces `<h3>` tags for all DOCX Heading 3 elements. The converter distinguishes heading vs. divider `<h3>` elements by checking for `<img>` child nodes, eliminating all content-based parsing heuristics.
+
+### Top-level task summary
+
 | Task | Complexity | Notes |
 |---|---|---|
-| Task 1: Core converter script (1a-1h) | **High** | Heading detection heuristics + AST traversal are the bulk of the work |
+| Task 1: Core converter (1a–1l) | **Medium** | Decomposed into 10 focused sub-tasks; significantly simplified from original plan — no content heuristics needed for headings since mammoth produces all `<h3>` correctly. H3 heading and divider logic merged into the main traversal pipeline (Task 1d). |
 | Task 2: Create import-docx.mjs orchestrator | **Low** | Replicate import-articles.mjs structure, filter for .docx only |
 | Task 3: Update package.json (npm run importDocx) | **Trivial** | Single entry in scripts section |
-| Task 4: Validation tests | **Medium** | Round-trip comparison against existing Article.md is the key test |
+| Task 4: Validation tests | **Medium** | Round-trip comparison against existing Article.md is the key test — but target format now matches `onlineresults/` (faithful DOCX conversion), not the manually-edited `Article.md` |
 
 ---
 
