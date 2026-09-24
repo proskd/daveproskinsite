@@ -12,7 +12,7 @@
 | 1f. Paragraph formatter | ✅ DONE | `paragraphToMarkdown()` in convert-docx-to-markdown.mjs:26–62, regex-based inline HTML→Markdown conversion (bold/italic/code/links); tested with 14 unit tests in test-paragraph-to-markdown.mjs |
 | 1i. Title/Subtitle detector | ✅ DONE | `detectTitleSubtitle()` in convert-docx-to-markdown.mjs:231–283, detects first `<p>` with img→Title and second short `<p>`→Subtitle; tested with 18 unit tests in test-title-subtitle-detector.mjs |
 | 1j. Image extractor & writer | ✅ DONE | `writeExtractedImages()` in convert-docx-to-markdown.mjs:233–286, deduplicates by base64 content (supports both Buffer and base64 string inputs), assigns smart filenames (banner.png for first, sectionN.ext from alt-text pattern, image-N.ext fallback), resolves collisions with -copy suffix; tested with 20 unit tests in test-image-extractor.mjs |
-| 1k. Markdown emitter | ⬜ TODO | — |
+| 1k. Markdown emitter | ✅ DONE | `generateFrontmatter()`, `generateTodoNotes()`, `generateMarkdown()` in convert-docx-to-markdown.mjs:555–655. Generates YAML frontmatter, iterates sections outputting title/h1, subtitle/italic, headings/h2, paragraphs, lists, images (with robust path resolution via imageMap), and TODO notes block. |
 | 1l. CLI entry point / main() | ⬜ TODO | — |
 | 2. Create import-docx.mjs orchestrator | ⬜ TODO | — |
 | 3. Update package.json | ⬜ TODO | — |
@@ -734,7 +734,7 @@ Each sub-task below is designed to be small enough for a single agent session (~
 | **1f.** Paragraph formatter | Medium | Convert HTML paragraph → markdown with inline formatting (`<em>`→`*`, `<strong>`→`**`, code, links) | 1d |
 | **1i.** Title/Subtitle detector | Low | `detectTitleSubtitle(html, images)` → `{ title, subtitle }`. First `<p>` with img→title; second short `<p>` (<50 chars)→subtitle. Tested with 18 unit tests. | 1c, 1d | ✅ DONE |
 | **1j.** Image extractor & writer | Small | Deduplicate, name (banner.png for first, sectionN.jpg for rest), write extracted images to disk | 1c |
-| **1k.** Markdown emitter | Low | Assemble frontmatter + Title/Subtitle → sections with headings, paragraphs, lists, images | 1d-1i, 1j |
+| **1k.** Markdown emitter | Low | `generateFrontmatter()`, `generateTodoNotes()`, `generateMarkdown(fm, sections, images)` — YAML frontmatter, title/subtitle/heading/paragraph/list/image rendering with robust imageMap-based path resolution (triple-fallback: explicit path → filename lookup → alt-text fallback), TODO notes block | 1d-1i, 1j | ✅ DONE |
 | **1l.** CLI entry point / main() | Medium | Wire the full pipeline together end-to-end | All above |
 
 > **Note**: This plan replaces the original content-based heuristics (which tried to detect "Setup" labels and "Tip N" headings from paragraph text) with a simpler architecture: mammoth correctly produces `<h3>` tags for all DOCX Heading 3 elements. The converter distinguishes heading vs. divider `<h3>` elements by checking for `<img>` child nodes, eliminating all content-based parsing heuristics.

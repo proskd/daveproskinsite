@@ -550,8 +550,14 @@ function convertList(listEl, depth) {
   return md.trimEnd()
 }
 
-// ─── Placeholder: Markdown emitter (Task 1g)
+// ─── Task 1k: Markdown emitter ────────────────────────────────────────────────
 
+/**
+ * Generate YAML frontmatter block for Article.md.
+ *
+ * @param {Object} fm — frontmatter object with slug, title, date, excerpt?, coverImage?
+ * @returns {string} YAML frontmatter string (delimited by ---)
+ */
 function generateFrontmatter(fm) {
   let md = '---\n'
   md += `slug: ${fm.slug}\n`
@@ -563,8 +569,55 @@ function generateFrontmatter(fm) {
   return md
 }
 
-function generateMarkdown(fm, sections) {
+/**
+ * Generate the standard TODO block appended to generated Article.md files.
+ * Mirrors the pattern used by convert-pdf-to-markdown.mjs for consistency.
+ *
+ * @param {number} [imageCount] — optional number of extracted images (adds image-specific TODO)
+ * @returns {string} Markdown TODO notes block (including preceding --- delimiter)
+ */
+function generateTodoNotes(imageCount) {
+  const lines = []
+  lines.push('---', '')
+  lines.push('> **TODO:** Review and refine section headings (the converter detected some automatically).')
+  if (imageCount && imageCount > 0) {
+    lines.push('> **TODO:** Verify image references. ' + imageCount + ' embedded image(s) extracted.')
+  } else {
+    lines.push('> **TODO:** Verify image references and ensure all images were extracted correctly.')
+  }
+  lines.push('> **TODO:** Check for any content that may need manual editing or reformatting.')
+  lines.push('')
+  return lines.join('\n')
+}
+
+/**
+ * Assemble frontmatter + body sections into final Article.md.
+ *
+ * Iterates through classified section items and produces Markdown:
+ *   - Title → `# Text` (H1 heading)
+ *   - Subtitle → `_Text_` (italic paragraph after title)
+ *   - Heading → `## Text` (H2 from H3 source elements)
+ *   - Paragraph → raw markdown text (with inline formatting preserved)
+ *   - List → indented markdown list text (from convertList)
+ *   - Image → `![alt](./filename)` reference
+ *
+ * @param {Object} fm — frontmatter object with slug, title, date, excerpt?, coverImage?
+ * @param {Array} sections — classified section objects from traverseDocument()
+ * @param {Array} [images] — optional extracted images array from writeExtractedImages(), used for image path resolution
+ * @returns {string} Complete Article.md string
+ */
+function generateMarkdown(fm, sections, images) {
   let md = generateFrontmatter(fm) + '\n\n'
+
+  // Build image lookup: filename → full relative path (./filename) for robust reference
+  const imageMap = new Map()
+  if (images && Array.isArray(images)) {
+    for (const img of images) {
+      if (img.filename) {
+        imageMap.set(img.filename, './' + img.filename)
+      }
+    }
+  }
 
   for (const section of sections) {
     if (section.heading) md += '## ' + section.heading + '\n\n'
@@ -580,16 +633,23 @@ function generateMarkdown(fm, sections) {
       } else if (item.type === 'list') {
         md += item.content + '\n\n'
       } else if (item.type === 'image') {
-        md += '\n![' + item.alt + '](' + item.path + ')\n\n'
+        // Resolve image path: prefer explicit .path, fall back to filename lookup, then use alt as last resort
+        let imgPath = item.path
+        if (!imgPath) {
+          imgPath = imageMap.get(item.filename)
+        }
+        if (!imgPath) {
+          // Ultimate fallback — should not happen in normal flow
+          imgPath = './' + (item.alt || 'unknown.jpg')
+        }
+        md += '![' + item.alt + '](' + imgPath + ')\n\n'
       }
     }
   }
 
-  // TODO notes for human review
-  md += '---\n\n'
-  md += '> **TODO:** Review and refine section headings (the converter detected some automatically).\n'
-  md += '> **TODO:** Verify image references and ensure all images were extracted correctly.\n'
-  md += '> **TODO:** Check for any content that may need manual editing or reformatting.\n'
+  // Append TODO notes for human review
+  const todoCount = images && Array.isArray(images) ? images.length : 0
+  md += generateTodoNotes(todoCount)
 
   return md
 }
@@ -686,7 +746,8 @@ async function convert(inputPath, options) {
   const mdPath = join(outputDir, 'Article.md')
   const mdContent = generateMarkdown(
     { slug: fmSlug, title: fmTitle, date: fmDate, excerpt: fmExcerpt, coverImage },
-    analysis.sections
+    analysis.sections,
+    imagesWritten
   )
   await writeFile(mdPath, mdContent, 'utf-8')
 
