@@ -13,7 +13,7 @@
 | 1i. Title/Subtitle detector | ✅ DONE | `detectTitleSubtitle()` in convert-docx-to-markdown.mjs:231–283, detects first `<p>` with img→Title and second short `<p>`→Subtitle; tested with 18 unit tests in test-title-subtitle-detector.mjs |
 | 1j. Image extractor & writer | ✅ DONE | `writeExtractedImages()` in convert-docx-to-markdown.mjs:233–286, deduplicates by base64 content (supports both Buffer and base64 string inputs), assigns smart filenames (banner.png for first, sectionN.ext from alt-text pattern, image-N.ext fallback), resolves collisions with -copy suffix; tested with 20 unit tests in test-image-extractor.mjs |
 | 1k. Markdown emitter | ✅ DONE | `generateFrontmatter()`, `generateTodoNotes()`, `generateMarkdown()` in convert-docx-to-markdown.mjs:555–655. Generates YAML frontmatter, iterates sections outputting title/h1, subtitle/italic, headings/h2, paragraphs, lists, images (with robust path resolution via imageMap), and TODO notes block. |
-| 1l. CLI entry point / main() | ⬜ TODO | — |
+| 1l. CLI entry point / main() | ✅ DONE | `convert()` orchestrator in convert-docx-to-markdown.mjs:659–780 wires all subtasks (1a-1k) into the full end-to-end pipeline; `main()` parses args, constructs options, and invokes it with error handling. |
 | 2. Create import-docx.mjs orchestrator | ⬜ TODO | — |
 | 3. Update package.json | ⬜ TODO | — |
 | 4. Validation tests | ⬜ TODO | — |

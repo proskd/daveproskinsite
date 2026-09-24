@@ -654,8 +654,23 @@ function generateMarkdown(fm, sections, images) {
   return md
 }
 
-// ─── Task 1h: CLI entry point / main() ──────────────────────────────────────
+// ─── Task 1l: CLI entry point / main() — Full pipeline wire-up ────────────────
 
+/**
+ * Main conversion orchestrator. Wires all subtasks (1a-1k) into the end-to-end pipeline:
+ *   1. validate input file exists
+ *   2. convertDocxToHtml    (Task 1c) — mammoth → HTML + extract image data URIs
+ *   3. writeExtractedImages (Task 1j) — deduplicate, rename, write images to disk
+ *   4. traverseDocument     (Task 1d) — classify every element as title/subtitle/heading/paragraph/list/image
+ *      └─ detectTitleSubtitle (Task 1i) — auto-detect title & subtitle for frontmatter fallback
+ *   5. interactiveFrontmatter / skip-prompts defaults (Task 1b) — collect slug, title, date, excerpt, coverImage
+ *   6. generateMarkdown     (Task 1k) — assemble YAML frontmatter + classified sections → Article.md
+ *      └─ generateFrontmatter   — YAML delimiters + key/value lines
+ *      └─ paragraphToMarkdown   — Task 1f: inline HTML→Markdown for paragraph content
+ *      └─ convertList           — Task 1e: recursive nested list → indented markdown
+ *      └─ generateTodoNotes     — standard TODO block for human review
+ *   7. write Article.md to output directory with summary printout
+ */
 async function convert(inputPath, options) {
   const { verbose, extract_images, skip_prompts } = options
   const inputAbs = resolve(inputPath)
