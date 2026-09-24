@@ -13,6 +13,55 @@ import { createInterface } from 'readline'
 import mammoth from 'mammoth'
 import { load } from 'cheerio'
 
+// ─── Task 1f: Paragraph content formatter ──────────────────────────────────────
+
+/**
+ * Convert HTML paragraph content to Markdown text, preserving inline formatting.
+ * Uses regex-based approach (no cheerio DOM method dependency) for reliable
+ * handling of <strong>, <em>, <code>, <a href>, and whitespace normalization.
+ *
+ * @param {string} html — innerHTML of a <p> element from mammoth output
+ * @returns {string} Markdown-formatted text string
+ */
+function paragraphToMarkdown(html) {
+  if (!html || !html.trim()) return ''
+
+  let md = html
+
+  // Process nested inline elements from inside out to handle nesting correctly.
+  // Repeatedly apply replacements until no more transformations occur (handles nesting).
+
+  let prev = ''
+  while (md !== prev) {
+    prev = md
+
+    // Bold: <strong>...</strong> or <b>...</b> → **...**
+    md = md.replace(/<(?:strong|b)\b[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**')
+
+    // Italic: <em>...</em> or <i>...</i> → *...*
+    md = md.replace(/<(?:em|i)\b[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*')
+
+    // Inline code: <code>...</code> → `...`
+    md = md.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, '`$1`')
+
+    // Links: <a href="url">text</a> → [text](url) — handle double quotes first
+    md = md.replace(/<a\b[^>href]*href="([^"]*?)"[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+    // Then single-quoted hrefs
+    md = md.replace(/<a\b[^>]*href='([^']*?)'[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+
+    // Line breaks: <br> or <br/> → newline
+    md = md.replace(/<br\s*\/?>/gi, '\n')
+
+    // Strip any remaining HTML tags (e.g., <span>, unknown wrappers)
+    md = md.replace(/<[^>]+>/g, '')
+  }
+
+  // Collapse multiple spaces and tabs to single space; collapse line breaks (except preserve intentional newlines between paragraphs)
+  md = md.replace(/[ \t]+/g, ' ').replace(/\n+/g, '\n').trim()
+
+  return md
+}
+
 // ─── Task 1a: CLI argument parsing ────────────────────────────────────────────
 
 function parseArgs(argv) {
@@ -262,8 +311,8 @@ function traverseDocument(html, images) {
         currentSection.items.push({ type: 'subtitle', text: stripHtmlTags($el.html()) })
         foundSubtitle = true
       } else {
-        // Forward reference -> delegates to Task 1f (paragraph formatter)
-        currentSection.items.push({ type: 'paragraph', content: $el.html() })
+        // Task 1f — paragraph formatter: convert HTML inline elements to Markdown
+        currentSection.items.push({ type: 'paragraph', content: paragraphToMarkdown($el.html()) })
       }
     } else if ($el.prop('tagName') === 'UL' || $el.prop('tagName') === 'OL') {
       // Task 1e — list converter: recursive nested list → indented markdown

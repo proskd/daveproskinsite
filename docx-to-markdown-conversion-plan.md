@@ -9,7 +9,7 @@
 | 1c. DOCX → HTML conversion | ✅ DONE | `convertDocxToHtml()` — uses mammoth.convertToHtml(), extracts images from data URIs (alt/src extracted independently) |
 | 1d. Main traversal pipeline | ✅ DONE | `traverseDocument()` — walks mammoth HTML sequentially with cheerio, classifies h3-divider/h3-heading/title/subtitle/paragraph/list elements |
 | 1e. List converter | ✅ DONE | `convertList()` in convert-docx-to-markdown.mjs:289–345, recursive nested list → indented markdown using native DOM APIs; handles Cheerio auto-closed `<p>` (UL/OL siblings), mixed ul/ol nesting, depth-based 2-space indentation; tested with 6 unit tests |
-| 1f. Paragraph formatter | ⬜ TODO | — |
+| 1f. Paragraph formatter | ✅ DONE | `paragraphToMarkdown()` in convert-docx-to-markdown.mjs:26–62, regex-based inline HTML→Markdown conversion (bold/italic/code/links); tested with 14 unit tests in test-paragraph-to-markdown.mjs |
 | 1i. Title/Subtitle detector | ⬜ TODO | — |
 | 1j. Image extractor & writer | ⬜ TODO | — |
 | 1k. Markdown emitter | ⬜ TODO | — |
