@@ -1,5 +1,25 @@
 # DOCX to Markdown Conversion Plan
 
+## Progress Tracker
+
+| Task | Status | Notes |
+|---|---|---|
+| 1a. CLI argument parsing | ✅ DONE | `parseArgs()` in convert-docx-to-markdown.mjs:17–63 |
+| 1b. Frontmatter collection | ✅ DONE | `interactiveFrontmatter()` in convert-docx-to-markdown.mjs:78–110 |
+| 1c. DOCX → HTML conversion | ⬜ TODO | — |
+| 1d. Main traversal pipeline | ⬜ TODO | — |
+| 1e. List converter | ⬜ TODO | — |
+| 1f. Paragraph formatter | ⬜ TODO | — |
+| 1i. Title/Subtitle detector | ⬜ TODO | — |
+| 1j. Image extractor & writer | ⬜ TODO | — |
+| 1k. Markdown emitter | ⬜ TODO | — |
+| 1l. CLI entry point / main() | ⬜ TODO | — |
+| 2. Create import-docx.mjs orchestrator | ⬜ TODO | — |
+| 3. Update package.json | ⬜ TODO | — |
+| 4. Validation tests | ⬜ TODO | — |
+
+---
+
 ## Overview
 
 This plan describes converting exported .docx article files (from Word, Google Docs, etc.) directly into the site's target Article.md format using the mammoth.js library (already installed in package.json).
@@ -305,17 +325,21 @@ Interactive mode (no --skip-prompts):
 | --skip-prompts | Use defaults / non-interactive mode |
 | --verbose | Print diagnostic information |
 
-#### 1a. CLI argument parsing
+#### 1a. CLI argument parsing ~~DONE~~ ✅
 
 Copy/replicate the parseArgs() function from convert-pdf-to-markdown.mjs. Same signature and behavior.
 
 **Deliverable**: `parseArgs(argv)` → `{ verbose, input, output, title, date, excerpt, slug, skipPrompts }`.
 
-#### 1b. Frontmatter collection (interactive or from args)
+**Status: COMPLETED** — Implemented in `scripts/convert-docx-to-markdown.mjs` lines 17–63. Handles boolean flags, key-value flags (space and `=` syntax), and positional arguments. Returns all required fields.
+
+#### 1b. Frontmatter collection (interactive or from args) ~~DONE~~ ✅
 
 Replicate interactiveFrontmatter() from the PDF converter. Identical flow: collect slug, title, date, excerpt, coverImage. Use defaults when --skip-prompts is set. The coverImage should default to the first image extracted by Task 1c (the banner).
 
 **Deliverable**: `collectFrontmatter(flags)` → `{ title, slug, date, excerpt, coverImage }`.
+
+**Status: COMPLETED** — Implemented in `scripts/convert-docx-to-markdown.mjs` lines 78–110 as `interactiveFrontmatter(title, slug, date, excerpt)`. Collects all five fields interactively; uses argument defaults for pre-supplied values. Includes `slugifyTitle()` helper and `createPrompter()` with readline interface.
 
 #### 1c. DOCX → HTML conversion + inline image extraction
 
@@ -696,10 +720,10 @@ The existing Article.md has an explicit ## Introduction heading with body text, 
 
 Each sub-task below is designed to be small enough for a single agent session (~30-90 min each).
 
-| Sub-task | Complexity | Description | Depends On |
-|---|---|---|---|
-| **1a.** CLI argument parsing | Trivial | Copy parseArgs() from PDF converter | — |
-| **1b.** Frontmatter collection | Low | Replicate interactiveFrontmatter() from PDF converter | 1a |
+| Sub-task | Complexity | Description | Depends On | Status |
+|---|---|---|---|---|
+| **1a.** CLI argument parsing | Trivial | Copy parseArgs() from PDF converter | — | ✅ DONE |
+| **1b.** Frontmatter collection | Low | Replicate interactiveFrontmatter() from PDF converter | 1a | ✅ DONE |
 | **1c.** DOCX → HTML conversion | Medium | Set up `convertToHtml()` with custom image handler. No styleMap needed (H3 headings auto-mapped). | 1a, 1b |
 | **1d.** Main traversal pipeline | Medium | Walk HTML tokens: Title `<p>`, Subtitle `<p>`, body `<p>`s, lists, `<h3>` headings (text → `## N.`) and dividers (`<h3 img>` → divider tokens). Uses handlers from Tasks 1e–1i. | 1c |
 | **1e.** List converter | Medium | Recursive nested list → indented markdown (handles Setup list + Tips overview ordered list) | 1d |
