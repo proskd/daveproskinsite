@@ -11,7 +11,7 @@
 | 1e. List converter | ✅ DONE | `convertList()` in convert-docx-to-markdown.mjs:289–345, recursive nested list → indented markdown using native DOM APIs; handles Cheerio auto-closed `<p>` (UL/OL siblings), mixed ul/ol nesting, depth-based 2-space indentation; tested with 6 unit tests |
 | 1f. Paragraph formatter | ✅ DONE | `paragraphToMarkdown()` in convert-docx-to-markdown.mjs:26–62, regex-based inline HTML→Markdown conversion (bold/italic/code/links); tested with 14 unit tests in test-paragraph-to-markdown.mjs |
 | 1i. Title/Subtitle detector | ✅ DONE | `detectTitleSubtitle()` in convert-docx-to-markdown.mjs:231–283, detects first `<p>` with img→Title and second short `<p>`→Subtitle; tested with 18 unit tests in test-title-subtitle-detector.mjs |
-| 1j. Image extractor & writer | ⬜ TODO | — |
+| 1j. Image extractor & writer | ✅ DONE | `writeExtractedImages()` in convert-docx-to-markdown.mjs:233–286, deduplicates by base64 content (supports both Buffer and base64 string inputs), assigns smart filenames (banner.png for first, sectionN.ext from alt-text pattern, image-N.ext fallback), resolves collisions with -copy suffix; tested with 20 unit tests in test-image-extractor.mjs |
 | 1k. Markdown emitter | ⬜ TODO | — |
 | 1l. CLI entry point / main() | ⬜ TODO | — |
 | 2. Create import-docx.mjs orchestrator | ⬜ TODO | — |

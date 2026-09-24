@@ -211,6 +211,81 @@ async function convertDocxToHtml(inputPath) {
   return { html: result.value, messages: result.messages, images: extractedImages }
 }
 
+// ─── Task 1j: Image extractor & writer ──────────────────────────────────────
+
+/**
+ * Deduplicate, rename, and write extracted images to disk.
+ *
+ * Deduplication: Uses a Set keyed by base64 content so the same image appearing
+ *   multiple times is written only once.
+ * Filename assignment:
+ *   - First unique image → `banner.<ext>` (from its MIME type)
+ *   - Subsequent images: attempts to use alt-text pattern `sectionN.<ext>`,
+ *     falling back to sequential `image-N.<ext>`.
+ * Duplicate filenames get a `-copy` suffix appended.
+ *
+ * Accepts images as either Buffer objects ({ buffer }) or base64 strings ({ base64 }).
+ *
+ * @param {Array<{buffer?: Buffer, base64?: string, mimeType: string, alt: string}>} images — extracted images array from convertDocxToHtml()
+ * @param {string} outputDir — filesystem path to write images into (must exist)
+ * @returns {Promise<Array<{filename: string, path: string, originalAlt: string}>>}
+ */
+async function writeExtractedImages(images, outputDir) {
+  const written = []          // { filename, path, originalAlt }
+  const seenB64 = new Set()   // dedup by base64 content
+
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i]
+
+    // Normalize: convert Buffer → base64 string for dedup key
+    let b64Key
+    if (img.buffer) {
+      b64Key = img.buffer.toString('base64')
+    } else if (img.base64) {
+      b64Key = img.base64
+    } else {
+      continue // skip images with no content
+    }
+
+    // Deduplicate: skip if we've already seen this exact image data
+    if (seenB64.has(b64Key)) continue
+    seenB64.add(b64Key)
+
+    const ext = img.mimeType.split('/')[1] || 'png'
+
+    let filename
+    if (i === 0) {
+      // First unique image is always the banner
+      filename = `banner.${ext}`
+    } else {
+      // Try to match alt-text pattern like "section3.jpg" or "section3.png"
+      const altMatch = img.alt?.match(/section(\d+)\./)
+      if (altMatch) {
+        filename = `section${altMatch[1]}.${ext}`
+      } else {
+        // Fallback: sequential naming
+        filename = `image-${i}.${ext}`
+      }
+    }
+
+    // Resolve name collisions with -copy suffix
+    while (written.some(w => w.filename === filename)) {
+      filename = `${filename}-copy`
+    }
+
+    const fullPath = join(outputDir, filename)
+
+    // Write: use Buffer directly if available, otherwise decode from base64
+    const writeBuffer = img.buffer || Buffer.from(b64Key, 'base64')
+    await writeFile(fullPath, writeBuffer)
+
+    written.push({ filename, path: fullPath, originalAlt: img.alt })
+  }
+
+  return written
+}
+
+
 // ─── Task 1i: Title/Subtitle detector ──────────────────────────────────────
 
 /**
@@ -548,15 +623,15 @@ async function convert(inputPath, options) {
     await mkdir(outputDir, { recursive: true })
   }
 
-  // Write extracted images to disk
+  // Write extracted images to disk (Task 1j)
   let imagesWritten = []
   if (extract_images) {
     process.stdout.write('  Writing extracted images...\n')
-    for (const img of images) {
-      const imgPath = join(options.output, img.filename)
-      await writeFile(imgPath, img.buffer)
-      imagesWritten.push(img.filename)
-      if (verbose) console.log('    ' + img.filename)
+    imagesWritten = await writeExtractedImages(images, options.output)
+    if (verbose) {
+      for (const w of imagesWritten) {
+        console.log('    ' + w.filename)
+      }
     }
   }
 
@@ -604,8 +679,8 @@ async function convert(inputPath, options) {
 
   // Auto-detect cover image from extracted images
   if (!coverImage && imagesWritten.length > 0) {
-    const bannerCandidate = imagesWritten.find((fn) => /banner/i.test(fn))
-    coverImage = bannerCandidate || imagesWritten[0]
+    const bannerCandidate = imagesWritten.find(w => /banner/i.test(w.filename))
+    coverImage = bannerCandidate?.filename || imagesWritten[0].filename
   }
 
   const mdPath = join(outputDir, 'Article.md')
