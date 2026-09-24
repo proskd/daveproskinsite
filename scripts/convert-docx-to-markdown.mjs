@@ -211,6 +211,78 @@ async function convertDocxToHtml(inputPath) {
   return { html: result.value, messages: result.messages, images: extractedImages }
 }
 
+// ─── Task 1i: Title/Subtitle detector ──────────────────────────────────────
+
+/**
+ * Detect Title and Subtitle paragraphs from mammoth HTML output.
+ *
+ * Title: The first <p> in the document that contains both an <img> tag AND text content.
+ *   Extracts the title text (excluding the image alt) and the banner image alt-text.
+ * Subtitle: The second distinct <p> paragraph — typically short (under ~50 chars) with no images.
+ *
+ * Output tokens:
+ *   - { type: "title", text, imageAlt } → emitted as `# {text}` in markdown
+ *   - { type: "subtitle", text } → appended after title as a separate italic paragraph
+ *
+ * @param {string} html — full HTML string from mammoth.convertToHtml() (already Cheerio-parsed)
+ * @param {Array} images — extracted images array from convertDocxToHtml()
+ * @returns {{ title: { text: string, imageAlt: string } | null, subtitle: { text: string } | null }}
+ */
+function detectTitleSubtitle(html, images) {
+  const $ = load(html)
+
+  // Helper: strip all HTML tags, leaving plain text
+  function stripHtmlTags(htmlString) {
+    return $('<div>').html(htmlString).text() || ''
+  }
+
+  let title = null
+  let subtitle = null
+  let pCount = 0
+
+  // Walk top-level <p> elements in order of appearance
+  $('body > p, body > div > p').each(function(_idx, el) {
+    const $el = $(el)
+
+    if ($el.prop('tagName') !== 'P' && $el.prop('tagName') !== 'p') return
+
+    pCount++
+
+    // Title detection: first <p> containing an <img> tag
+    if (!title && $el.find('img').length > 0) {
+      const img = $el.find('img').first()
+      const imageAlt = img.attr('alt') || ''
+
+      // Extract title text: all text content excluding the <img> element itself.
+      // We clone the element, remove img children, then extract text.
+      const $clone = $('<div>').html($el.html())
+      $clone.find('img').remove()
+      const titleText = $clone.text().trim()
+
+      if (titleText) {
+        title = { text: titleText, imageAlt }
+      } else if (imageAlt) {
+        // Fallback: use the alt text as the title when no surrounding text exists
+        title = { text: imageAlt, imageAlt }
+      }
+    }
+
+    // Subtitle detection: second short <p> (under ~50 chars), no images
+    if (!subtitle && pCount >= 2 && $el.find('img').length === 0) {
+      const text = stripHtmlTags($el.html()).trim()
+      if (text.length > 0 && text.length < 50) {
+        subtitle = { text }
+      }
+    }
+
+    // Early exit once both title and subtitle are found
+    if (title && subtitle) return false
+  })
+
+  return { title, subtitle }
+}
+
+
 // ─── Task 1d: Main traversal pipeline ──────────────────────────────────────
 
 /**
@@ -229,6 +301,15 @@ async function convertDocxToHtml(inputPath) {
 function traverseDocument(html, images) {
   // Parse HTML using cheerio (Node.js-compatible DOM parser) — imported above
   const $ = load(html)
+
+  // Task 1i: Detect Title/Subtitle paragraphs for frontmatter auto-fill
+  const titleSubtitle = detectTitleSubtitle(html, images)
+  if (titleSubtitle.title) {
+    console.log('  [Title]    Detected: "' + titleSubtitle.title.text + '" (image alt: ' + titleSubtitle.title.imageAlt + ')')
+  }
+  if (titleSubtitle.subtitle) {
+    console.log('  [Subtitle] Detected: "' + titleSubtitle.subtitle.text + '"')
+  }
 
   // Deduplicate extracted images (by lowercase filename)
   const seen = {}
@@ -305,10 +386,14 @@ function traverseDocument(html, images) {
       currentSection.heading = stripHtmlTags($el.html()).trim()
     } else if ($el.prop('tagName') === 'P') {
       if (!foundTitle && hasImage($el)) {
-        currentSection.items.push({ type: 'title', imageAlt: getImgAlt($el) })
+        // Task 1i: Use detected title info (text + imageAlt) from the standalone detector
+        const detected = titleSubtitle.title || { text: '', imageAlt: getImgAlt($el) }
+        currentSection.items.push({ type: 'title', text: detected.text, imageAlt: detected.imageAlt })
         foundTitle = true
       } else if (!foundSubtitle && isShortText($el.html())) {
-        currentSection.items.push({ type: 'subtitle', text: stripHtmlTags($el.html()) })
+        // Task 1i: Use detected subtitle info or fall back to inline detection
+        const detected = titleSubtitle.subtitle || { text: stripHtmlTags($el.html()) }
+        currentSection.items.push({ type: 'subtitle', text: detected.text })
         foundSubtitle = true
       } else {
         // Task 1f — paragraph formatter: convert HTML inline elements to Markdown
@@ -409,7 +494,13 @@ function generateMarkdown(fm, sections) {
   for (const section of sections) {
     if (section.heading) md += '## ' + section.heading + '\n\n'
     for (const item of section.items) {
-      if (item.type === 'paragraph') {
+      if (item.type === 'title') {
+        // Task 1i: Title → H1 heading with trailing blank line
+        md += '# ' + item.text + '\n\n'
+      } else if (item.type === 'subtitle') {
+        // Task 1i: Subtitle → italic paragraph after title
+        md += '_' + item.text + '_\n\n'
+      } else if (item.type === 'paragraph') {
         md += item.content + '\n\n'
       } else if (item.type === 'list') {
         md += item.content + '\n\n'
@@ -461,7 +552,7 @@ async function convert(inputPath, options) {
   let imagesWritten = []
   if (extract_images) {
     process.stdout.write('  Writing extracted images...\n')
-    for (const img of extractedImages) {
+    for (const img of images) {
       const imgPath = join(options.output, img.filename)
       await writeFile(imgPath, img.buffer)
       imagesWritten.push(img.filename)
@@ -483,12 +574,18 @@ async function convert(inputPath, options) {
   let fmSlug = options.slug || undefined
   let coverImage = options.coverImage
 
-  // Auto-detect title from first section's title item (if present in traversal output)
+  // Auto-detect title from first section's title item (Task 1i detection)
   if (!fmTitle && analysis.sections.length > 0 && analysis.sections[0].items.length > 0) {
     const firstItem = analysis.sections[0].items[0]
-    if (firstItem.type === 'title' || firstItem.type === 'subtitle') {
-      // Look for the title text — it will be in the next non-title item or we skip auto-detection
-      // Title text comes from mammoth HTML; for now use a placeholder and let user provide
+    if (firstItem.type === 'title' && firstItem.text) {
+      fmTitle = firstItem.text
+      // Also check for subtitle in the next item
+      if (analysis.sections[0].items.length > 1) {
+        const secondItem = analysis.sections[0].items[1]
+        if (secondItem.type === 'subtitle' && secondItem.text) {
+          fmExcerpt = secondItem.text // Use subtitle as excerpt fallback
+        }
+      }
     }
   }
 

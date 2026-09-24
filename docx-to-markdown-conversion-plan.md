@@ -10,7 +10,7 @@
 | 1d. Main traversal pipeline | ✅ DONE | `traverseDocument()` — walks mammoth HTML sequentially with cheerio, classifies h3-divider/h3-heading/title/subtitle/paragraph/list elements |
 | 1e. List converter | ✅ DONE | `convertList()` in convert-docx-to-markdown.mjs:289–345, recursive nested list → indented markdown using native DOM APIs; handles Cheerio auto-closed `<p>` (UL/OL siblings), mixed ul/ol nesting, depth-based 2-space indentation; tested with 6 unit tests |
 | 1f. Paragraph formatter | ✅ DONE | `paragraphToMarkdown()` in convert-docx-to-markdown.mjs:26–62, regex-based inline HTML→Markdown conversion (bold/italic/code/links); tested with 14 unit tests in test-paragraph-to-markdown.mjs |
-| 1i. Title/Subtitle detector | ⬜ TODO | — |
+| 1i. Title/Subtitle detector | ✅ DONE | `detectTitleSubtitle()` in convert-docx-to-markdown.mjs:231–283, detects first `<p>` with img→Title and second short `<p>`→Subtitle; tested with 18 unit tests in test-title-subtitle-detector.mjs |
 | 1j. Image extractor & writer | ⬜ TODO | — |
 | 1k. Markdown emitter | ⬜ TODO | — |
 | 1l. CLI entry point / main() | ⬜ TODO | — |
@@ -732,7 +732,7 @@ Each sub-task below is designed to be small enough for a single agent session (~
 | **1d.** Main traversal pipeline | Medium | Walk HTML tokens: Title `<p>`, Subtitle `<p>`, body `<p>`s, lists, `<h3>` headings (text → `## N.`) and dividers (`<h3 img>` → divider tokens). Uses handlers from Tasks 1e–1i. | 1c |
 | **1e.** List converter | Medium | Recursive nested list → indented markdown (handles Setup list + Tips overview ordered list) | 1d |
 | **1f.** Paragraph formatter | Medium | Convert HTML paragraph → markdown with inline formatting (`<em>`→`*`, `<strong>`→`**`, code, links) | 1d |
-| **1i.** Title/Subtitle detector | Low | First `<p>` with banner image → title; second short `<p>` → subtitle. Output as `# Title` and inline italic | 1c, 1d |
+| **1i.** Title/Subtitle detector | Low | `detectTitleSubtitle(html, images)` → `{ title, subtitle }`. First `<p>` with img→title; second short `<p>` (<50 chars)→subtitle. Tested with 18 unit tests. | 1c, 1d | ✅ DONE |
 | **1j.** Image extractor & writer | Small | Deduplicate, name (banner.png for first, sectionN.jpg for rest), write extracted images to disk | 1c |
 | **1k.** Markdown emitter | Low | Assemble frontmatter + Title/Subtitle → sections with headings, paragraphs, lists, images | 1d-1i, 1j |
 | **1l.** CLI entry point / main() | Medium | Wire the full pipeline together end-to-end | All above |
