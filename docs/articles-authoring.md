@@ -2,14 +2,14 @@
 
 ## Overview
 
-Articles on this site are authored as Markdown files with YAML frontmatter, stored in `public/articles/{slug}/`. This approach allows non-technical workflows: write in Word or Google Docs, export as PDF, run the conversion script, and deploy — all without touching source code.
+Articles on this site are authored as Markdown files with YAML frontmatter, stored in `public/articles/{slug}/`. This approach allows non-technical workflows: write in Word or Google Docs, export as DOCX, run the conversion script, and deploy — all without touching source code.
 
 ## Quick Start (New Article)
 
 1. Write your article in Word / Google Docs
 2. Save images (cover, inline) as PNG/JPG files
-3. Export document as PDF
-4. Run the conversion script
+3. Export document as DOCX
+4. Run `npm run importDocx` to convert it automatically
 5. Review and tweak the output
 6. Commit and deploy — done!
 
@@ -20,229 +20,162 @@ Articles on this site are authored as Markdown files with YAML frontmatter, stor
 Write your article content in your preferred editor (Word, Google Docs, etc.). When including images:
 
 - **Cover image:** Export separately as `banner.png` (recommended) or another filename. This goes into the article folder and is referenced via the `coverImage` frontmatter field.
-- **Inline images:** Save each as a separate file (e.g., `section1.jpg`, `section2.jpg`). Keep a note of their intended filenames — you'll reference them in the Markdown content manually after conversion.
+- **Inline images:** Save each as a separate file (e.g., `section1.jpg`, `section2.jpg`). These will be auto-detected if embedded in the DOCX, or you can reference them manually after conversion.
 
-### Step 2: Export as PDF
+**Heading conventions:** Use Word styles to define your document structure:
+- **Title style** → rendered as `# Title` in Markdown
+- **Subtitle style** → rendered as italic subtitle under the title
+- **Heading 3** → rendered as `## Section Heading` in Markdown
+- **Body paragraphs** → rendered as regular text paragraphs
+- **Bullet/numbered lists** → automatically detected and formatted
 
-Export your document as a `.pdf` file. This PDF is the input to the conversion script.
+### Step 2: Export as DOCX
 
-> **Tip:** Ensure "Export text as visible text" is enabled in your PDF export settings, not "as images." Text extraction won't work on image-only PDFs (e.g., scanned documents).
+Export your document from Word or Google Docs as a .docx file. Place it in the `rawArticles/` folder.
 
-### Step 3: Run the Conversion Script
+> **Tip:** Ensure your document uses built-in Word styles (Title, Subtitle, Heading 1-3, Body) rather than manually formatting text. The converter relies on these styles to produce correct Markdown headings and structure.
 
-```bash
-# Interactive mode — prompts for metadata
-node scripts/convert-pdf-to-markdown.mjs my-article.pdf
+### Step 3: Run the Import Script
 
-# Full CLI flags — no prompting needed
-node scripts/convert-pdf-to-markdown.mjs \
-  --input my-article.pdf \
-  --output ./public/articles/my-article-slug/Article.md \
-  --title "My Article Title" \
-  --date 2026-09-15 \
-  --excerpt "A short description of the article."
+```
+bash
+# Batch import — processes all .docx files in rawArticles/
+npm run importDocx
+```
 
-# With image extraction (optional)
-node scripts/convert-pdf-to-markdown.mjs \
-  --input my-article.pdf \
-  --output ./public/articles/my-article-slug/Article.md \
+This will:
+
+1. Scan `rawArticles/` for .docx files
+2. For each **new** file (one whose slug folder does not already contain an Article.md):
+   - Convert it to structured Markdown using the DOCX converter
+   - Extract embedded images and save them into the article folder
+   - Generate `public/articles/<slug>/Article.md` with YAML frontmatter and TODO notes
+3. Skip files that have already been imported (idempotent)
+
+### Step 4: Review and Tweak
+
+The conversion script generates an Article.md file with a **TODO** footer at the bottom. Review each item:
+
+1. **Frontmatter values** — Check slug, title, date, excerpt are correct. The script extracts these from DOCX styles, but manual verification is recommended.
+2. **Cover image** — Verify the cover image reference in frontmatter matches your intended banner.
+3. **Inline images** — If images were embedded in the source DOCX, they will be extracted into the article folder automatically. Otherwise, you will need to manually save them from your source document.
+4. **Links** — Check for any links that may not have converted correctly and fix as needed.
+5. **Heading structure** — Verify that headings (## Section Title) match your intended outline.
+
+### Step 5: Build and Deploy
+
+```
+bash
+npm run build
+```
+
+This builds the site and generates `articles-manifest.json` which the listing page uses to discover all articles.
+## CLI Reference (Advanced)
+
+If you need more control, you can call the converter directly:
+
+___CODEFENCE___
+bash
+# Convert a specific DOCX with all options
+node scripts/convert-docx-to-markdown.mjs \
+  --input rawArticles/my-article.docx \
+  --output ./public/articles/my-article-slug/ \
   --title "My Article Title" \
   --date 2026-09-15 \
   --excerpt "A short description." \
   --extract-images
 
-# Skip style heuristics (raw text only)
-node scripts/convert-pdf-to-markdown.mjs \
-  --input my-article.pdf \
-  --output ./public/articles/my-article-slug/Article.md \
-  --title "My Article Title" \
-  --date 2026-09-15 \
-  --excerpt "Desc." \
-  --no-heuristics
-
-# Verbose output for debugging
-node scripts/convert-pdf-to-markdown.mjs \
-  --input my-article.pdf \
-  --output ./public/articles/my-article-slug/Article.md \
-  --title "My Article Title" \
-  --date 2026-09-15 \
-  --excerpt "Desc." \
-  --verbose
-```
-
-### Step 4: Save Images into the Article Folder
-
-The conversion script extracts **embedded** images from the PDF (if `--extract-images` is used), but for best quality and naming control, manually save your images from the source document into the article folder:
-
-```
-public/articles/my-article-slug/
-  Article.md          ← generated by the conversion script
-  banner.png          ← cover image
-  section1.jpg        ← inline image, referenced in article body
-  section2.jpg
-```
-
-Then update any `TODO` comments or image references in `Article.md`.
-
-### Step 5: Review and Tweak
-
-The conversion script adds a **TODO** footer to the generated `Article.md`. Review each item:
-
-1. **Frontmatter values** — Check slug, title, date, excerpt are correct. The script makes best guesses from the PDF filename or interactive prompts, but you should verify them.
-2. **Heading structure** — The heuristic detection identifies headings based on patterns (ALL-CAPS lines, numbered sections, title-case short phrases). Verify heading levels (`#`, `##`, `###`) are appropriate. Some headings may be missed; add them manually if needed.
-3. **List formatting** — Bulleted and numbered lists are detected from leading `- `, `* `, or `1.` markers. Check indentation for nested lists.
-4. **Image references** — Add Markdown image syntax where images appear in the article:
-
-   ```markdown
-   ![Description](./section1.jpg)
-   ```
-
-5. **Links** — URLs in the PDF may be extracted as plain text. Convert them to Markdown link syntax:
-
-   ```markdown
-   [GitHub](https://github.com)
-   ```
-
-### Step 6: Deploy
-
-Once `Article.md` looks good, commit your changes and deploy. The site automatically picks up new articles — **no code changes required**.
-
-> **Zero-code-change publishing:** Adding a new article folder to `public/articles/` is all it takes. The listing page (`Articles.tsx`) fetches `articles-manifest.json` at build time, which scans all folders under `public/articles/`. The detail page (`Article.tsx`) fetches the corresponding `Article.md` at runtime via React Markdown rendering.
-
-## Article File Structure
-
-Each article lives in its own folder:
-
-```
-public/articles/
-  my-article-slug/
-    Article.md          ← Main content with YAML frontmatter
-    banner.png          ← Cover image (optional, referenced in frontmatter)
-    section1.jpg        ← Inline images (referenced via relative paths)
-```
-
-### YAML Frontmatter Fields
-
-```yaml
----
-slug: my-article-slug       # Required: URL-friendly identifier
-title: "My Article Title"   # Required: Display title
-date: 2026-09-15            # Required: ISO 8601 (YYYY-MM-DD)
-excerpt: "Short description."  # Required: One-line summary
-coverImage: ./banner.png    # Optional: Filename in same folder
----
-```
-
-## Style Detection Heuristics
-
-The conversion script applies pattern-based rules to reconstruct document structure from plain text:
-
-| Pattern Detected | Markdown Output | Example Input |
-|---|---|---|
-| ALL-CAPS short lines | `# H1` | `MY ARTICLE TITLE` → `# MY ARTICLE TITLE` |
-| Numbered sections (`Tip 1:`) | `## H2` | `Tip 1: Write down your plan` → `## Tip 1: Write down your plan` |
-| Title-case short phrases | `### H3` | `Let's talk about tips` → `### Let's talk about tips` |
-| `- item` or `* item` | `- item` (ul) | `- First item` → `- First item` |
-| `1. item` | `1. item` (ol) | `1. Step one` → `1. Step one` |
-| `> text` | `> text` (blockquote) | Already in blockquote format |
-
-### Common Manual Fixes After Conversion
-
-| Issue | Fix |
-|---|---|
-| Heading not detected | Add `##`, `###`, etc. manually before the line |
-| List items merged into paragraph | Ensure each list item starts with `- `, `* `, or `1.` on its own line |
-| Extra blank lines | Remove redundant empty lines between paragraphs |
-| Bold/italic lost (inline) | Wrap text in `**bold**` or `*italic*` as needed |
-| Image not shown | Add `![alt text](./filename.jpg)` in the body |
-| Link broken | Convert plain URL to `[text](url)` syntax |
-
-## Troubleshooting
-
-### "No text content found in PDF"
-
-Your PDF is likely image-only (scanned document or exported as images). Try:
-- Re-export from Word/Google Docs ensuring text is selectable
-- Use an OCR tool first if dealing with scanned pages
-- Manually author the Markdown file instead
-
-### Heuristics miss some headings
-
-The heuristic detection works on common patterns but can't be 100% accurate for all documents. If a heading isn't detected:
-1. Run with `--no-heuristics` to get raw text
-2. Add heading markers (`##`, `###`) manually
-3. Or adjust the input document formatting (e.g., use ALL-CAPS for top-level headings)
-
-### Interactive mode not responding
-
-If running in interactive mode, ensure your terminal supports readline. If the script hangs, press `Ctrl+C` and rerun with explicit `--title`, `--date`, `--excerpt` flags instead.
-
-## Commands Reference
-
-```bash
-# Show help / usage
-node scripts/convert-pdf-to-markdown.mjs
-
-# Convert with interactive metadata prompts
-node scripts/convert-pdf-to-markdown.mjs input.pdf
-
-# Convert with all options specified (no prompting)
-node scripts/convert-pdf-to-markdown.mjs \
-  --input input.pdf \
-  --output ./public/articles/slug/Article.md \
-  --title "Article Title" \
-  --date 2026-09-15 \
-  --excerpt "A short description."
-
-# Extract embedded images from PDF (optional)
-node scripts/convert-pdf-to-markdown.mjs \
-  --input input.pdf \
-  --output ./public/articles/slug/Article.md \
-  --title "Title" \
-  --date 2026-09-15 \
-  --excerpt "Description." \
-  --extract-images
-
-# Raw text output (no style heuristics)
-node scripts/convert-pdf-to-markdown.mjs \
-  --input input.pdf \
-  --output ./public/articles/slug/Article.md \
-  --title "Title" --date 2026-09-15 --excerpt "Desc." \
-  --no-heuristics
+# Skip interactive prompts (use defaults)
+node scripts/convert-docx-to-markdown.mjs \
+  --input rawArticles/my-article.docx \
+  --output ./public/articles/my-article-slug/ \
+  --skip-prompts \
+  --title "My Article" \
+  --date 2026-09-15
 
 # Verbose output with diagnostics
-node scripts/convert-pdf-to-markdown.mjs \
-  --input input.pdf \
-  --output ./public/articles/slug/Article.md \
-  --title "Title" --date 2026-09-15 --excerpt "Desc." \
+node scripts/convert-docx-to-markdown.mjs \
+  --input rawArticles/my-article.docx \
+  --output ./public/articles/my-article-slug/ \
   --verbose
-```
+___CODEFENCE___
+
+### Available Flags
+
+| Flag | Description |
+|---|---|
+| `--input` | Source .docx file (required) |
+| `--output` | Output directory (creates folder + Article.md) |
+| `--title` | Article display title |
+| `--date` | ISO date (YYYY-MM-DD) |
+| `--excerpt` | Short description |
+| `--slug` | URL slug |
+| `--extract-images` | Extract embedded DOCX images into the article folder |
+| `--skip-prompts` | Skip interactive prompts (use defaults) |
+| `--verbose` | Print extra diagnostics |
 
 ## What Gets Generated
 
-After running the conversion script, you'll have:
+After running the conversion script, you will have:
 
-1. **`Article.md`** — Markdown content with YAML frontmatter and a TODO footer
+1. **Article.md** — Markdown content with YAML frontmatter and a TODO footer
 2. **(Optional)** Embedded images extracted into the same folder (if `--extract-images`)
-3. **Automatic inclusion** in the site's article listing via `articles-manifest.json` (generated at build time)
+3. **Automatic inclusion** in the site article listing via articles-manifest.json (generated at build time)
 
 The site then:
-- Lists the article on `/articles` with title, date, and excerpt
-- Renders the full article on `/articles/{slug}` with images, code blocks, blockquotes, etc.
+- Lists the article on /articles with title, date, and excerpt
+- Renders the full article on /articles/{slug} with images, code blocks, blockquotes, etc.
+
+## Frontmatter Reference
+
+| Field | Required | Notes |
+|---|---|---|
+| slug | Yes | URL-friendly identifier, lowercase with dashes |
+| title | Yes | Display title shown in listing and header |
+| date | Yes | ISO 8601 format: YYYY-MM-DD |
+| excerpt | No | Short description shown on the articles listing page |
+| coverImage | No | Path to an image in the same folder, e.g. ./banner.png |
+
+## Markdown Body Structure
+
+The article body uses standard Markdown rendered by react-markdown. Common patterns:
+
+- **Headings:** ## Section Title, ### Subsection
+- **Paragraphs:** plain text with line breaks
+- **Images:** ![alt text](./image.jpg) — images must be in the article folder
+- **Lists:** - item (unordered), 1. item (ordered)
+- **Code blocks:** fenced with triple backticks + language
+- **Emphasis:** bold, italic
+
+## What Gets Preserved from DOCX
+
+| DOCX Feature | Markdown Output |
+|---|---|
+| Title style | # Heading (H1) |
+| Subtitle style | Italic subtitle under the H1 |
+| Heading 3 style | ## Section Heading (H2 in Markdown) |
+| Body paragraphs | Regular Markdown paragraphs |
+| Bullet lists | - item with nesting via indentation |
+| Numbered lists | 1. item with nesting via indentation |
+| Bold text | bold formatting |
+| Italic text | italic formatting |
+| Code spans | inline code |
+| Hyperlinks | [text](url) |
+| Embedded images | Extracted and referenced as ![alt](./image.jpg) |
 
 ## FAQ
 
 **Q: Do I need to install anything?**
-A: No — the conversion script uses `pdf-parse` which is already a project dependency. Just run it from the project root.
+A: No — the conversion scripts use mammoth.js which is already a project dependency. Just run from the project root.
 
-**Q: Can I write Markdown directly instead of converting from PDF?**
-A: Yes! You can author `Article.md` by hand. Follow the frontmatter format above and use standard Markdown syntax for headings, lists, images, links, code blocks, and blockquotes.
+**Q: Can I write Markdown directly instead of converting from DOCX?**
+A: Yes! You can author Article.md by hand. Follow the frontmatter format above and use standard Markdown syntax for headings, lists, images, links, code blocks, and blockquotes.
 
 **Q: How do I add inline images?**
-A: Place image files in the article folder and reference them with relative paths: `![Description](./section1.jpg)`
+A: Place image files in the article folder and reference them with relative paths: ![Description](./section1.jpg)
 
 **Q: What Markdown elements are supported on the site?**
-A: Headings (`#` through `###`), paragraphs, bold/italic emphasis, unordered lists (`-`, `*`), ordered lists (`1.`), links, images, code blocks (with syntax highlighting via `rehype-highlight`), blockquotes (`>`), and horizontal rules (`---`).
+A: Headings (##, ###), paragraphs, bold/italic emphasis, unordered lists (-, *), ordered lists (1.), links, images, code blocks (with syntax highlighting via rehype-highlight), blockquotes (>), and horizontal rules (---).
 
 **Q: Can I have multiple articles?**
-A: Absolutely. Each article gets its own folder under `public/articles/`. The listing page auto-discovers all articles from their frontmatter. No code changes needed for new articles.
+A: Absolutely. Each article gets its own folder under public/articles/. The listing page auto-discovers all articles from their frontmatter. No code changes needed for new articles.
