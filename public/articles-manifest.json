@@ -1,5 +1,12 @@
 [
   {
+    "slug": "lessons-in-gratitude",
+    "title": "Say It Before the Send-Off",
+    "date": "2026-10-18",
+    "excerpt": "Lessons in Leadership: Gratitude",
+    "coverImage": "./banner.jpg"
+  },
+  {
     "slug": "farm-to-table-local-llms",
     "title": "Farm-to-Table: Building an iOS App with Local LLMs",
     "date": "2026-09-15",
