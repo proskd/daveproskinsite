@@ -58,10 +58,16 @@ export const hobbies: HobbyEntry[] = [
 
 export const experience: ExperienceEntry[] = [
   {
+    title: 'Senioer Engineering Manager',
+    company: 'Duolingo',
+    location: 'New York, NY',
+    dates: '2026–Present',
+  },
+  {
     title: 'Associate Director, Engineering',
     company: 'Wayfair',
     location: 'Boston, MA (remote)',
-    dates: '2022–Present',
+    dates: '2022–2026',
   },
   {
     title: 'Senior Manager, Engineering',
